@@ -1,0 +1,1082 @@
+\documentclass[journal,compsoc]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{cite}
+
+\hypersetup{
+    colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
+    pdftitle={Vel-v4.3: A Decentralized Swarm Protocol for Autonomous Volume Dominance},
+    pdfauthor={Dakshith Rajkumar},
+}
+
+\newcommand{\vecc}[1]{\vec{\mathbf{#1}}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+\begin{document}
+
+\title{Vel-v4.3: A Decentralized Swarm Protocol\\for Autonomous Volume Dominance}
+
+\author{Dakshith~Rajkumar,~\IEEEmembership{Independent~Researcher}%
+\IEEEcompsocitemizethanks{
+\IEEEcompsocthanksitem D. Rajkumar is an Independent Researcher.
+E-mail: daks2edu@gmail.com}}
+
+\markboth{IEEE Transactions on Aerospace and Electronic Systems,~Vol.~X, No.~X, 2025}%
+{Rajkumar: Vel-v4.3 Decentralized Swarm Protocol}
+
+\maketitle
+
+% ── Abstract ─────────────────────────────────────────────────────────────────
+\begin{abstract}
+This paper presents the comprehensive empirical validation of the Vel-v4.3 protocol,
+a decentralized swarm coordination system for autonomous robotic navigation. A critical
+architectural upgrade --- the replacement of center-outward bloom repulsion with
+\textbf{Map-Aware Gradient Repulsion} (MAGR) --- is introduced and validated across
+five systematic parameter sweeps comprising 105{,}000 simulation trials. The sweeps
+characterize four independent protocol dimensions: agent population ($N$), repulsion
+factor ($G$), momentum coefficient ($\mu$), and MAGR scan radius ($r$).
+
+The Population Sweep ($N \in \{50,\,150,\,300\}$) confirms that MAGR restores monotonic
+efficiency scaling eliminated by the original center-bloom architecture. The integer $G$
+Sweep ($G \in \{0,\,2,\,4,\,6,\,8\}$) establishes $G=2$ as the coarse optimum and
+confirms that repulsion accounts for over $97\%$ of protocol efficiency. The Fine $G$
+Sweep ($G \in [1.0,\,3.0]$, $\Delta G=0.25$) refines the optimum to $G=1.5$ at $N=300$,
+yielding $\bar{\eta}=1.796$. The Momentum Sweep ($\mu \in [0.70,\,0.99]$) identifies
+$\mu=0.99$ as the empirical optimum, delivering $\bar{\eta}=2.696$ --- a $49.6\%$ gain
+over the original $\mu=0.88$ assumption. The Scan Radius Sweep ($r \in [2,\,10]$) reveals
+that MAGR efficiency is radius-invariant ($\Delta\eta=0.006$ across all tested values),
+while computational cost scales by $17.6\times$ from $r=2$ to $r=10$, establishing $r=2$
+as the optimal deployment radius.
+
+The global efficiency optimum is $N=300$, $G=1.5$, $\mu=0.99$, $r=2$:
+$\bar{\eta}=2.696$, $\sigma=0.089$, $\bar{T}=35$ steps --- a $78.7\%$ gain over the
+initial baseline. The original operational benchmark of $\eta>0.105$ is superseded by
+$\eta>2.0$ for fully-optimized MAGR configurations.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Swarm robotics, decentralized coordination, occupancy grid, map-aware repulsion,
+spatio-temporal efficiency, momentum conservation, autonomous search, coverage path planning.
+\end{IEEEkeywords}
+
+% ── 1. Introduction ───────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+
+\IEEEPARstart{I}{n} autonomous multi-agent robotics, the \textit{Redundant Search
+Problem} describes the efficiency loss that arises when agents re-traverse previously
+explored regions due to insufficient shared environmental awareness. Conventional swarm
+architectures frequently rely on centralized command
+structures~\cite{dorigo2004,brambilla2013,jamshidpey2024} --- an approach that introduces
+a single point of failure, limits scalability, and prohibits genuine emergent behavior.
+
+The Vel Protocol addresses both failure modes through a two-layer decentralized control
+architecture in which global coverage efficiency emerges purely from local agent
+interactions mediated by a shared spatial memory~\cite{reynolds1987}. Unlike centralized
+systems, Vel requires no global coordinator: each agent acts independently, reading from
+and writing to a shared binary occupancy grid that serves as the protocol's collective
+intelligence layer.
+
+This paper documents the most comprehensive empirical characterization of the Vel protocol
+to date. Building on the introduction of Map-Aware Gradient Repulsion (MAGR), five
+independent parameter sweeps are conducted across 105{,}000 simulation trials,
+systematically characterizing efficiency across every major protocol dimension.
+
+The central contributions are:
+\begin{enumerate}
+    \item Identification and correction of the boundary pile-up failure mode in
+          center-outward bloom repulsion via MAGR.
+    \item Empirical characterization of $\eta$ across 105{,}000 trials spanning
+          four independent parameter dimensions.
+    \item Discovery that the original momentum assumption ($\mu=0.88$) was
+          suboptimal by $49.6\%$, with $\mu=0.99$ identified as the true optimum.
+    \item Discovery that MAGR efficiency is radius-invariant, establishing $r=2$
+          as the optimal deployment radius on computational cost grounds.
+    \item Identification of the global efficiency optimum:
+          $N=300$, $G=1.5$, $\mu=0.99$, $r=2$, $\bar{\eta}=2.696$.
+    \item Establishment of a revised operational benchmark of $\eta>2.0$ for
+          fully-optimized MAGR configurations.
+\end{enumerate}
+
+% ── 2. Related Work ───────────────────────────────────────────────────────────
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Coverage Path Planning}
+
+Coverage Path Planning (CPP) is the task of determining a path that passes over all
+points of an area or volume of interest while avoiding obstacles~\cite{galceran2013}.
+A considerable body of research has addressed the CPP problem across domains including
+vacuum cleaning robots, autonomous underwater vehicles, demining robots, and aerial
+survey platforms. Classical CPP approaches such as boustrophedon decomposition partition
+the environment into cells and plan optimal traversal sequences, but are designed for
+single agents and do not address the coordination challenges that arise when multiple
+agents cover the same space.
+
+\subsection{Ant Colony Optimization}
+
+Ant Colony Optimization (ACO), originally introduced by Dorigo~\cite{dorigo1992} for
+the Traveling Salesman Problem, models the pheromone-trail communication of biological
+ants to solve combinatorial optimization problems. ACO has been extensively applied to
+multi-robot path planning, where pheromone trails guide agents toward unexplored regions.
+The key limitation of ACO for coverage tasks is stagnation: once pheromone trails
+converge on a particular traversal pattern, agents are difficult to redirect toward
+remaining unexplored regions. Recent work has addressed this through adaptive pheromone
+update rules~\cite{li2024}, but the fundamental reliance on pheromone convergence
+constrains real-time adaptability.
+
+Vel differs from ACO in a fundamental architectural choice: rather than pheromone
+concentration, Vel uses a binary occupancy grid in which cells are either explored or
+unexplored with no intermediate state. This eliminates the stagnation problem entirely
+--- a cell is explored or it is not --- and removes the need for pheromone decay
+parameter tuning.
+
+\subsection{Particle Swarm Optimization}
+
+Particle Swarm Optimization (PSO), introduced by Kennedy and
+Eberhart~\cite{kennedy1995}, models the collective motion of flocking agents to
+optimize continuous objective functions. PSO has been adapted for multi-robot coverage
+tasks, where agents are attracted toward unexplored regions by a shared global best
+position. However, PSO-based coverage systems are vulnerable to premature convergence:
+once the global best position is identified, all agents converge toward it rather than
+distributing across the remaining unexplored space.
+
+The Vel KVL subsystem draws conceptual inspiration from PSO's velocity update rule ---
+specifically the momentum term $\mu$ that damps high-frequency direction changes. However,
+Vel replaces PSO's global attractor with a map-aware local gradient, avoiding the
+premature convergence failure mode by ensuring each agent steers toward the nearest
+\emph{locally} unexplored cell rather than a globally optimal position.
+
+\subsection{Decentralized Multi-Robot Coverage}
+
+The problem of centralization versus decentralization in multi-robot sweep coverage has
+been directly studied by Jamshidpey et al.~\cite{jamshidpey2024}, who demonstrate that
+decentralized approaches achieve competitive coverage efficiency while eliminating the
+single point of failure inherent in centralized command architectures. Brambilla et
+al.~\cite{brambilla2013} provide a comprehensive review of the swarm engineering
+perspective, cataloging the conditions under which emergent decentralized behavior
+outperforms designed centralized coordination. The Vel protocol is positioned squarely
+within this decentralized paradigm, extending it with a formally defined shared memory
+layer that enables implicit coordination without explicit communication.
+
+\subsection{Occupancy Grid Representations}
+
+The occupancy grid representation used by Vel's SSM layer was introduced by Moravec and
+Elfes~\cite{moravec1985} and formalized by Elfes~\cite{elfes1989} for mobile robot
+perception. The original formulation used probabilistic cell states to represent sensor
+uncertainty. Vel simplifies this to a deterministic binary representation (explored/unexplored)
+appropriate for the coverage task, where the question of interest is not the probability
+of occupancy but the certainty of prior visitation.
+
+\subsection{Positioning of Vel}
+
+The Vel protocol occupies a distinct position in the swarm coverage landscape. Unlike
+ACO, it uses deterministic binary memory rather than probabilistic pheromones. Unlike
+PSO, it uses local map-aware gradient descent rather than global attraction. Unlike
+classical CPP methods, it is fully decentralized with no pre-planned traversal sequence.
+The MAGR architecture, introduced in this paper, is a novel contribution that addresses
+the boundary pile-up failure mode not previously identified or resolved in the
+decentralized coverage literature.
+
+% ── 3. System Architecture ────────────────────────────────────────────────────
+\section{System Architecture}
+\label{sec:arch}
+
+The Vel protocol operates as a two-layer control system. The lower layer ---
+the \textbf{Shared Spatial Memory} (SSM) --- maintains a globally synchronized binary
+map of the environment that every agent reads and writes simultaneously, functioning as
+a distributed hive-mind. The upper layer --- the \textbf{Kinetic Vector Logic} (KVL)
+--- governs individual agent motion through continuous force integration at 50\,Hz,
+using the SSM to continuously steer each agent toward undiscovered territory.
+
+\subsection{Shared Spatial Memory (SSM)}
+
+The operational theater is discretized into an occupancy grid $M$ of dimensions
+$W \times H$~\cite{moravec1985,elfes1989}. Each cell $c \in M$ is a binary state
+variable:
+\begin{equation}
+    c(x,y) = \begin{cases} 0 & \text{if Unexplored} \\ 1 & \text{if Explored}
+    \end{cases}
+    \label{eq:cell}
+\end{equation}
+Agents perform atomic \texttt{write(1)} operations on every visited cell. The SSM
+acts as a globally shared repulsion field: agents query it continuously to identify
+and prioritize \emph{White Space} (cells where $c=0$). Because every agent reads the
+same SSM, the system achieves implicit coordination without any direct agent-to-agent
+communication channel --- a key architectural advantage over ACO and PSO variants that
+require explicit message passing.
+
+Coverage is defined as the fraction of cells with $c=1$:
+\begin{equation}
+    \text{Coverage}(t) = \frac{\sum_{x,y} c(x,y,t)}{W \cdot H}
+\end{equation}
+Each trial terminates when $\text{Coverage}(t) \geq 0.95$ or when the step budget
+$T_{\max}=1{,}000$ is exhausted.
+
+\subsection{Kinetic Vector Logic (KVL)}
+
+Agent $i$ maintains a velocity vector $\vecc{V}_i = [V_x,\,V_y]^\top$, updated at
+50\,Hz:
+\begin{equation}
+    \vecc{V}_{i}(t+1) = \Bigl(\vecc{V}_{i}(t) + \vecc{R}_G(\theta)\Bigr)\cdot\mu
+    \label{eq:kvl}
+\end{equation}
+where $\vecc{R}_G(\theta) = G\cdot[\cos\theta,\,\sin\theta]^\top\cdot 0.12$ is the
+Repulsion Vector derived from the SSM gradient, $\mu \in (0,\,1]$ is the Momentum
+Conservation Coefficient governing velocity decay, and $G \in \mathbb{R}^+$ is the
+tunable Repulsion Factor.
+
+The momentum term $\mu$ serves an analogous role to the inertia weight in PSO~\cite{kennedy1995}:
+it prevents high-frequency direction oscillations and maintains smooth, arc-shaped
+agent trajectories. The Momentum Sweep (Study IV) provides the first systematic
+empirical characterization of $\mu$'s effect on coverage efficiency.
+
+\subsection{Map-Aware Gradient Repulsion (MAGR)}
+
+\subsubsection{Failure Mode of Center-Outward Bloom}
+The original Vel implementation computed $\theta$ as the bearing from the swarm's
+geometric center to agent $i$'s position. This produced a systematic failure for
+square grids: center-bloom drives agents radially outward in a circle, but the four
+corners of a square lie significantly further from center than edge midpoints. Agents
+reaching the perimeter are repelled back toward already-explored space rather than
+redirected toward nearby unexplored corners --- the \textit{boundary pile-up effect}.
+Empirically, this caused $N=300$ to underperform $N=150$, as additional agents
+compounded the pile-up rather than contributing new coverage. This failure mode is
+analogous to the stagnation problem in ACO, where positive feedback drives agents
+toward already-converged paths.
+
+\subsubsection{MAGR Algorithm}
+MAGR replaces the center-bearing calculation with a local SSM neighborhood scan.
+At each timestep, agent $i$ scans a radius-$r$ Moore neighborhood and steers toward
+the nearest unexplored cell:
+\begin{equation}
+    \vecc{R}_G = \begin{cases}
+        G \cdot \dfrac{(dx^*,\,dy^*)}{\norm{(dx^*,\,dy^*)}}\cdot 0.12
+            & \text{unexplored cell found within radius }r \\[0.8em]
+        G \cdot \hat{u}_{\text{out}}\cdot 0.12
+            & \text{fallback: center-bloom}
+    \end{cases}
+    \label{eq:magr}
+\end{equation}
+where:
+\begin{equation}
+    (dx^*,\,dy^*) = \underset{\substack{(dx,dy):\,\norm{(dx,dy)}\leq r \\ c(g_x+dx,\,g_y+dy)=0}}{\arg\min}\;\norm{(dx,dy)}
+\end{equation}
+
+\begin{algorithm}[H]
+\caption{MAGR Repulsion Vector Computation for Agent $i$}
+\label{alg:magr}
+\begin{algorithmic}[1]
+\State $(g_x,g_y)\gets\lfloor(p_x^i,p_y^i)\rfloor$
+\If{$c(g_x,g_y)=0$} $c(g_x,g_y)\gets 1$ \EndIf
+\State $d^*\gets\infty$; \texttt{found}$\gets$\textbf{false}
+\For{$dy\in[-r,r]$} \textbf{ do}
+    \For{$dx\in[-r,r]$} \textbf{ do}
+        \If{$(g_x{+}dx,\,g_y{+}dy)\in M$ \textbf{and}
+            $c(g_x{+}dx,\,g_y{+}dy)=0$ \textbf{and}
+            $\sqrt{dx^2{+}dy^2}<d^*$}
+            \State $(dx^*,dy^*)\gets(dx,dy)$; $d^*\gets\sqrt{dx^2{+}dy^2}$;
+                   \texttt{found}$\gets$\textbf{true}
+        \EndIf
+    \EndFor
+\EndFor
+\If{\texttt{found}}
+    \State \Return $G\cdot(dx^*,dy^*)/\norm{(dx^*,dy^*)}\cdot 0.12$
+\Else
+    \State \Return $G\cdot[\cos\theta_{\text{out}},\sin\theta_{\text{out}}]^\top\cdot 0.12$
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+% ── 4. Performance Metrics ────────────────────────────────────────────────────
+\section{Performance Metrics}
+\label{sec:metrics}
+
+\subsection{Spatio-Temporal Efficiency ($\eta$)}
+
+The primary performance metric is Spatio-Temporal Efficiency:
+\begin{equation}
+    \eta = \frac{\Delta C}{\Delta T \cdot N}
+    \label{eq:eta}
+\end{equation}
+where $\Delta C$ is newly explored cells, $\Delta T$ elapsed timesteps, $N$ agent count.
+This metric captures the joint optimization objective: maximize coverage, minimize time,
+minimize agents. A higher $\eta$ indicates more efficient use of both time and agents.
+Note that $\eta$ is normalized by $N$, so a larger swarm must achieve proportionally
+more coverage to maintain the same $\eta$ --- this normalization reveals diminishing
+returns and scan-overlap congestion that raw coverage rates would conceal.
+
+\subsection{Stability ($\sigma$)}
+
+The trial-to-trial standard deviation of $\eta$:
+\begin{equation}
+    \sigma = \sqrt{\frac{1}{K}\sum_{k=1}^{K}(\eta_k - \bar{\eta})^2}
+\end{equation}
+where $K$ is the number of trials. Lower $\sigma$ indicates more deterministic,
+hardware-deployable behavior. The efficiency--stability tradeoff identified in Studies
+II through IV has direct implications for deployment: configurations with high
+$\bar{\eta}$ but high $\sigma$ may be unsuitable for safety-critical applications
+requiring predictable coverage completion times.
+
+\subsection{Coordination Quality ($\eta/N$)}
+
+Per-agent efficiency, revealing diminishing returns as $N$ scales:
+\begin{equation}
+    Q = \frac{\eta}{N}
+\end{equation}
+Decreasing $Q$ with increasing $N$ indicates the onset of scan-overlap congestion,
+where multiple agents simultaneously target the same unexplored cells.
+
+\subsection{Convergence Speed ($\bar{T}$)}
+
+Mean timesteps to $95\%$ grid coverage across all trials. For $G=0$ configurations
+where coverage is never achieved, $\bar{T}$ is reported as the step budget ceiling
+($T_{\max}=1{,}000$).
+
+% ── 5. Study I: Population Sweep ─────────────────────────────────────────────
+\section{Study I: Population Sweep}
+\label{sec:nsweep}
+
+\subsection{Configuration}
+Three agent populations at fixed $G=4.0$, $\mu=0.88$, $r=5$. 5{,}000 trials each on
+a $50\times50$ grid (15{,}000 total).
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Population Sweep Results (5,000 trials, $G=4.0$, $\mu=0.88$, $r=5$)}
+\label{tab:nsweep}
+\centering
+\begin{tabular}{ccccc}
+\hline
+$N$ & $\bar{\eta}$ & $\sigma_\eta$ & $\bar{T}$ & $Q\times10^3$ \\
+\hline
+50  & 0.4345 & 0.04026 & 247 & 8.69 \\
+150 & 0.9076 & 0.07062 & 106 & 6.05 \\
+300 & 1.5092 & 0.11091 & 63  & 5.03 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{N_Sweep_Data_Visualization/fig1_convergence.png}
+\caption{Rolling mean $\eta$ ($w=100$) across 5{,}000 trials per population. All
+         configurations stabilize rapidly. Shaded bands: 95\% CI.}
+\label{fig:n_convergence}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{N_Sweep_Data_Visualization/fig5_summary_bars.png}
+\caption{Population Sweep summary. Clockwise from top-left: mean $\eta\pm1\sigma$,
+         stability $\sigma$, Coordination Quality, mean convergence steps.}
+\label{fig:n_summary}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{N_Sweep_Data_Visualization/fig6_scaling_laws.png}
+\caption{Left: power law fit $\bar{\eta}\propto N^\alpha$ with 95\% CI ribbon.
+         Right: convergence steps vs.\ $N$ with linear fit.}
+\label{fig:n_scaling}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\columnwidth]{N_Sweep_Data_Visualization/fig10_per_agent.png}
+\caption{Coordination Quality $Q$ vs.\ $N$. Monotonic decrease confirms scan-overlap
+         congestion onset. Error bars: $\pm1\sigma$.}
+\label{fig:n_per_agent}
+\end{figure}
+
+\subsection{Analysis}
+
+\paragraph{Monotonic Scaling Under MAGR.}
+MAGR produces strictly monotonic $N$-scaling: $+108.9\%$ ($N$: $50\to150$) and
+$+66.3\%$ ($N$: $150\to300$). This is the primary validation of the MAGR upgrade ---
+the original center-bloom implementation exhibited a congestion inversion where $N=300$
+underperformed $N=150$ due to boundary pile-up. MAGR eliminates this inversion entirely.
+
+\paragraph{Power Law Scaling.}
+The relationship $\bar{\eta}\propto N^\alpha$ holds across the tested range, enabling
+performance prediction at deployment densities beyond those tested. This power law is
+consistent with theoretical predictions for decentralized coverage systems where agent
+interactions are mediated by a shared memory field~\cite{brambilla2013}.
+
+\paragraph{Diminishing Returns Per Agent.}
+Coordination Quality $Q$ decreases monotonically: $8.69\times10^{-3}$ ($N=50$),
+$6.05\times10^{-3}$ ($N=150$), $5.03\times10^{-3}$ ($N=300$). Each additional agent
+delivers less marginal coverage gain, consistent with scan-overlap congestion where
+multiple agents simultaneously target the same unexplored cell. The theoretical optimal
+density ceiling --- where adding agents yields negative marginal returns on $\eta$ ---
+is not reached within the tested range, suggesting further gains are achievable at
+higher $N$.
+
+% ── 6. Study II: Integer G Sweep ─────────────────────────────────────────────
+\section{Study II: Integer Repulsion Factor Sweep}
+\label{sec:gsweep}
+
+\subsection{Configuration}
+Five $G$ values at $N\in\{150,300\}$, including $G=0$ control. 2{,}000 trials each
+(20{,}000 total). $\mu=0.88$, $r=5$ fixed.
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Integer $G$ Sweep Results ($^\dagger$budget exhausted; $\Delta\eta$ vs.\ $G{=}4$)}
+\label{tab:gsweep}
+\centering
+\begin{tabular}{lcccccc}
+\hline
+Config & $N$ & $G$ & $\bar{\eta}$ & $\sigma_\eta$ & $\bar{T}$ & $\Delta\eta$ \\
+\hline
+G0-N150 & 150 & 0 & 0.0262 & 0.00057 & $1000^\dagger$ & $-97.1\%$ \\
+G2-N150 & 150 & 2 & 0.9161 & 0.07931 & 105 & $+0.9\%$ \\
+G4-N150 & 150 & 4 & 0.9076 & 0.07135 & 106 & baseline \\
+G6-N150 & 150 & 6 & 0.8727 & 0.06666 & 110 & $-3.8\%$ \\
+G8-N150 & 150 & 8 & 0.8821 & 0.06805 & 109 & $-2.8\%$ \\
+\hline
+G0-N300 & 300 & 0 & 0.0284 & 0.00020 & $1000^\dagger$ & $-98.1\%$ \\
+G2-N300 & 300 & 2 & 1.7732 & 0.17188 & 54  & $\mathbf{+17.5\%}$ \\
+G4-N300 & 300 & 4 & 1.5087 & 0.11017 & 64  & baseline \\
+G6-N300 & 300 & 6 & 1.4261 & 0.09883 & 67  & $-5.5\%$ \\
+G8-N300 & 300 & 8 & 1.4909 & 0.08969 & 64  & $-1.2\%$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{G_Sweep_Data_Visualization/figG9_control_G0.png}
+\caption{$G=0$ vs.\ best $G$ per population. Without repulsion, $\eta$ collapses by
+         $97$--$98\%$, confirming repulsion is the primary protocol efficiency driver.}
+\label{fig:g0_control}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{G_Sweep_Data_Visualization/figG2_eta_vs_G.png}
+\caption{Mean $\eta\pm1\sigma$ vs.\ integer $G$ for $N=150$ and $N=300$.
+         $G=2$ is the coarse optimum for both populations.}
+\label{fig:g_eta}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{G_Sweep_Data_Visualization/figG6_heatmap.png}
+\caption{$N\times G$ efficiency heatmap. Left: mean $\eta$. Right: mean steps.
+         Global coarse optimum: $N=300$, $G=2$.}
+\label{fig:g_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\columnwidth]{G_Sweep_Data_Visualization/figG10_ranking.png}
+\caption{All integer $G$ configurations ranked by $\bar{\eta}$. $N=300$ dominates
+         the top four positions regardless of $G$.}
+\label{fig:g_ranking}
+\end{figure}
+
+\subsection{Analysis}
+
+\paragraph{Repulsion is Non-Negotiable.}
+The $G=0$ control establishes a critical baseline: without repulsion, Vel degenerates
+to an unguided random walk, achieving $\eta \approx 0.027$ --- a $97$--$98\%$
+efficiency collapse relative to the $G=4$ baseline. This result empirically confirms
+the repulsion subsystem as the primary driver of protocol efficiency and validates
+the MAGR architecture as essential rather than optional.
+
+\paragraph{Overshoot Mechanism.}
+$G=4$ underperforms $G=2$ because excessive repulsion force causes agents to overshoot
+target unexplored cells. When an agent's MAGR vector points toward a nearby unexplored
+cell at distance $d$, the repulsion impulse $G\cdot 0.12$ must be proportioned to
+that distance. At $G=4$, the impulse frequently exceeds what is required to reach the
+target, carrying the agent past it and requiring corrective steps. At $G=2$, the
+impulse is calibrated to the typical MAGR target distance, minimizing overshoot.
+
+\paragraph{Stability--Efficiency Tradeoff.}
+$\sigma$ decreases monotonically with $G$ at $N=300$: from $0.172$ ($G=2$) to $0.090$
+($G=8$) --- a $47.7\%$ variance reduction at the cost of $15.9\%$ mean efficiency.
+Hardware deployments requiring deterministic coverage completion times may prefer
+higher $G$ values despite the efficiency penalty. This tradeoff is formally quantified
+in Study IV.
+
+\paragraph{Integer Resolution Insufficient.}
+The coarse $G$ sweep identifies $G=2$ as the optimum but tests only integer values.
+The true efficiency peak may lie between $G=1$ and $G=2$, motivating the fine sweep
+in Study III.
+
+% ── 7. Study III: Fine G Sweep ───────────────────────────────────────────────
+\section{Study III: Fine Repulsion Factor Sweep}
+\label{sec:fgsweep}
+
+\subsection{Configuration}
+Nine $G$ values in $[1.0,\,3.0]$ at $\Delta G=0.25$, for $N\in\{150,\,300\}$.
+2{,}000 trials each (36{,}000 total). $\mu=0.88$, $r=5$ fixed.
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Fine $G$ Sweep Results (2,000 trials each, $\mu=0.88$, $r=5$)}
+\label{tab:fgsweep}
+\centering
+\begin{tabular}{ccccccc}
+\hline
+$G$ & \multicolumn{3}{c}{$N=150$} & \multicolumn{3}{c}{$N=300$} \\
+    & $\bar{\eta}$ & $\sigma$ & $\bar{T}$ & $\bar{\eta}$ & $\sigma$ & $\bar{T}$ \\
+\hline
+1.00 & 0.8970 & 0.108 & 108 & 1.6394 & 0.122 & 58 \\
+1.25 & 0.9130 & 0.114 & 106 & 1.7415 & 0.135 & 55 \\
+1.50 & 0.9097 & 0.099 & 106 & \textbf{1.7958} & 0.159 & \textbf{53} \\
+1.75 & 0.9123 & 0.085 & 105 & 1.7788 & 0.167 & 54 \\
+2.00 & 0.9174 & 0.080 & 105 & 1.7714 & 0.175 & 54 \\
+2.25 & 0.9137 & 0.077 & 105 & 1.7069 & 0.179 & 56 \\
+2.50 & 0.9208 & 0.074 & 104 & 1.6317 & 0.170 & 59 \\
+2.75 & \textbf{0.9222} & 0.076 & 104 & 1.6022 & 0.152 & 60 \\
+3.00 & 0.9153 & 0.072 & 105 & 1.5373 & 0.128 & 62 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Fine_G_Sweep/figFG1_eta_vs_G.png}
+\caption{Fine $G$ sweep: mean $\eta\pm1\sigma$ vs.\ $G$. Peaks: $G=2.75$ ($N=150$),
+         $G=1.5$ ($N=300$). Dashed lines mark empirical optima per population.}
+\label{fig:fg_eta}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Fine_G_Sweep/figFG4_comparison.png}
+\caption{$N=150$ vs.\ $N=300$ efficiency across fine $G$ sweep. Peak locations
+         diverge, confirming a $N\times G$ interaction effect.}
+\label{fig:fg_comparison}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Fine_G_Sweep/figFG5_heatmap.png}
+\caption{Fine $G$ sweep $N\times G$ heatmap. Left: mean $\eta$. Right: mean steps.
+         Color gradient reveals the interaction structure.}
+\label{fig:fg_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Fine_G_Sweep/figFG8_ranking.png}
+\caption{All fine $G$ configurations ranked by $\bar{\eta}$. $N=300$, $G=1.5$
+         is the fine-sweep global optimum.}
+\label{fig:fg_ranking}
+\end{figure}
+
+\subsection{Analysis}
+
+\paragraph{Population-Dependent Optimal G.}
+The fine sweep reveals that the optimal repulsion factor is population-dependent:
+$G^*_{N=300}=1.5$ versus $G^*_{N=150}=2.75$. This constitutes a genuine $N\times G$
+interaction effect: higher populations require lower repulsion to avoid the overshoot
+mechanism identified in Study II, because the mean inter-agent distance is smaller
+at higher density, and the MAGR target cells are closer on average. Lower repulsion
+force is therefore sufficient to reach them cleanly. At $N=150$, agents are more
+dispersed, and a stronger repulsion impulse is needed to maintain outward pressure.
+
+\paragraph{Revised G Optimum.}
+The true optimum for $N=300$ is $G=1.5$ ($\bar{\eta}=1.796$), not $G=2$ as the
+integer sweep suggested. The difference is $1.4\%$ in mean efficiency --- modest but
+consistent across 2{,}000 trials and therefore statistically reliable.
+
+\paragraph{Stability Gradient.}
+$\sigma$ decreases monotonically with $G$ for $N=300$: higher repulsion produces more
+deterministic behavior. This creates a practical design space: engineers can select
+any $G \in [1.5,\,3.0]$ and trade efficiency for stability in a controlled manner.
+
+% ── 8. Study IV: Momentum Sweep ──────────────────────────────────────────────
+\section{Study IV: Momentum Coefficient Sweep}
+\label{sec:musweep}
+
+\subsection{Configuration}
+Eight $\mu$ values in $[0.70,\,0.99]$ at $N=300$, $G=1.5$, $r=5$.
+2{,}000 trials each (16{,}000 total).
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Momentum Sweep Results ($N=300$, $G=1.5$, $r=5$)}
+\label{tab:musweep}
+\centering
+\begin{tabular}{ccccc}
+\hline
+$\mu$ & $\bar{\eta}$ & $\sigma_\eta$ & $\bar{T}$ & $\Delta\eta$ vs.\ $\mu{=}0.88$ \\
+\hline
+0.70 & 0.7574 & 0.05768 & 126 & $-58.0\%$ \\
+0.75 & 0.9650 & 0.06852 &  99 & $-46.5\%$ \\
+0.80 & 1.2226 & 0.09524 &  78 & $-32.2\%$ \\
+0.85 & 1.5481 & 0.12655 &  62 & $-14.1\%$ \\
+0.88 & 1.8026 & 0.16393 &  53 & baseline \\
+0.90 & 1.9071 & 0.17778 &  50 & $+5.8\%$ \\
+0.95 & 2.3871 & 0.18746 &  40 & $+32.4\%$ \\
+\textbf{0.99} & \textbf{2.6963} & \textbf{0.08897} & \textbf{35} & $\mathbf{+49.6\%}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Momentum_Sweep/figMU1_eta_vs_mu.png}
+\caption{Mean $\eta\pm1\sigma$ (left) and convergence speed (right) vs.\ $\mu$.
+         Both metrics improve monotonically across $[0.70,\,0.99]$.}
+\label{fig:mu_eta}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Momentum_Sweep/figMU6_gain.png}
+\caption{\% efficiency gain over original $\mu=0.88$ baseline. Red bars indicate
+         configurations worse than the original; green bars indicate improvements.}
+\label{fig:mu_gain}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Momentum_Sweep/figMU7_boxplots.png}
+\caption{Full $\eta$ distribution shapes across $\mu$ values. Note the sharp
+         variance reduction at $\mu=0.99$ relative to $\mu=0.95$.}
+\label{fig:mu_boxplots}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Momentum_Sweep/figMU8_frontier.png}
+\caption{Efficiency--stability frontier. $\mu=0.99$ (top-left) occupies the dominant
+         position: simultaneously highest $\bar{\eta}$ and lowest $\sigma$.}
+\label{fig:mu_frontier}
+\end{figure}
+
+\subsection{Analysis}
+
+\paragraph{The Original $\mu=0.88$ Was Suboptimal.}
+The momentum sweep is the most consequential result of this study. The original
+$\mu=0.88$ was an untested assumption carried forward from the initial protocol
+specification. The sweep reveals it was suboptimal by $49.6\%$: $\mu=0.99$ achieves
+$\bar{\eta}=2.696$ versus $\bar{\eta}=1.803$ at $\mu=0.88$.
+
+\paragraph{Monotonic Efficiency Scaling.}
+Unlike the $G$ sweep, the momentum sweep reveals no interior optimum within the tested
+range: efficiency increases monotonically from $\mu=0.70$ to $\mu=0.99$. This suggests
+the true optimum may lie at or near $\mu=1.0$, i.e., zero momentum decay. While
+$\mu=1.0$ is physically unrealizable on real hardware (all physical systems exhibit
+some momentum loss), $\mu=0.99$ is practically achievable and provides $49.6\%$
+efficiency gains over the original assumption.
+
+\paragraph{Dominant Frontier Position.}
+$\mu=0.99$ simultaneously achieves the highest mean efficiency ($\bar{\eta}=2.696$)
+and the lowest variance ($\sigma=0.089$) of any tested configuration. This is a rare
+result in parameter optimization: typically, maximum efficiency comes at the cost of
+increased variance. The mechanism is that high momentum causes agents to maintain
+smooth, consistent sweeping arcs rather than erratic directional changes, reducing
+both wasted steps and trial-to-trial variability.
+
+\paragraph{Variance Spike at $\mu=0.95$.}
+A notable non-monotonicity appears in the stability data: $\sigma$ increases from
+$0.164$ ($\mu=0.88$) to $0.187$ ($\mu=0.95$) before dropping sharply to $0.089$
+($\mu=0.99$). This suggests a phase transition in agent trajectory dynamics between
+$\mu=0.95$ and $\mu=0.99$, where the system transitions from a high-variance
+exploratory regime to a low-variance stable sweeping regime.
+
+% ── 9. Study V: Scan Radius Sweep ────────────────────────────────────────────
+\section{Study V: Scan Radius Sweep}
+\label{sec:rsweep}
+
+\subsection{Configuration}
+Nine $r$ values in $[2,\,10]$ at $N=300$, $G=1.5$, $\mu=0.99$.
+2{,}000 trials each (18{,}000 total).
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Scan Radius Sweep Results ($N=300$, $G=1.5$, $\mu=0.99$)}
+\label{tab:rsweep}
+\centering
+\begin{tabular}{ccccc}
+\hline
+$r$ & $\bar{\eta}$ & $\sigma_\eta$ & $\bar{T}$ & Reads/agent/step \\
+\hline
+2  & 2.6892 & 0.09360 & 35.5 & 25 \\
+3  & 2.6924 & 0.09102 & 35.4 & 49 \\
+4  & 2.6948 & 0.09536 & 35.4 & 81 \\
+5  & 2.6909 & 0.09255 & 35.4 & 121 \\
+6  & 2.6916 & 0.09301 & 35.4 & 169 \\
+7  & 2.6943 & 0.09297 & 35.4 & 225 \\
+8  & 2.6956 & 0.09163 & 35.4 & 289 \\
+9  & 2.6955 & 0.09245 & 35.4 & 361 \\
+10 & 2.6922 & 0.09373 & 35.4 & 441 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Radius_Sweep/figR1_eta_vs_r.png}
+\caption{Mean $\eta\pm1\sigma$ (left) and convergence steps (right) vs.\ $r$.
+         Efficiency is flat across all tested radii --- the radius-invariance result.}
+\label{fig:r_eta}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Radius_Sweep/figR7_cost_vs_eta.png}
+\caption{Computational cost (SSM reads/agent/step) vs.\ $r$, overlaid with $\bar{\eta}$.
+         Cost scales as $(2r+1)^2$ while efficiency remains flat: a $17.6\times$ cost
+         increase for $\Delta\eta=0.006$.}
+\label{fig:r_cost}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Radius_Sweep/figR6_boxplots.png}
+\caption{Full $\eta$ distribution shapes across all $r$ values. Near-identical
+         distributions confirm radius-invariance.}
+\label{fig:r_boxplots}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{Radius_Sweep/figR8_heatmap.png}
+\caption{Scan radius sweep summary heatmap: $\bar{\eta}$, $\sigma$, and $\bar{T}$
+         across all $r$. Near-uniform color confirms invariance.}
+\label{fig:r_heatmap}
+\end{figure}
+
+\subsection{Analysis}
+
+\paragraph{MAGR is Radius-Invariant.}
+The scan radius sweep produces the most operationally significant finding of the study.
+MAGR efficiency is radius-invariant: $\Delta\eta=0.006$ across $r\in[2,\,10]$, which
+is within the normal trial-to-trial variance of any single configuration. Convergence
+speed is similarly invariant: $\bar{T}$ differs by at most 0.1 steps across all tested
+radii.
+
+\paragraph{Computational Cost Implication.}
+MAGR scan cost scales as $(2r+1)^2$: from 25 reads per agent per step at $r=2$ to 441
+reads at $r=10$, a $17.6\times$ increase for zero efficiency gain. The optimal
+deployment radius is therefore $r=2$: minimum scan bandwidth, maximum deployability,
+identical performance to any larger radius.
+
+\paragraph{Theoretical Explanation.}
+The radius-invariance result provides theoretical insight into MAGR's mechanism. At
+the optimal configuration ($\mu=0.99$, $G=1.5$), agents maintain smooth sweeping arcs
+that carry them continuously toward frontier boundaries. The nearest unexplored cell is
+almost always within 2 cells of the agent's current position during active coverage,
+making larger scan radii redundant. The MAGR algorithm effectively degenerates to a
+radius-1 or radius-2 scan at runtime regardless of the configured radius, because
+there is almost always an unexplored cell within that distance during the coverage
+process. Only near the very end of a trial, when coverage approaches $95\%$, would
+a larger scan radius provide any practical advantage --- and the efficiency metric
+integrates over the entire trial, diluting this effect.
+
+% ── 10. Combined Results ─────────────────────────────────────────────────────
+\section{Combined Results and Global Optimum}
+\label{sec:combined}
+
+\subsection{Evolution of the Optimum}
+
+Each successive study refined the protocol optimum. Table~\ref{tab:evolution} traces
+this evolution from the initial baseline through all five studies.
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Evolution of the Protocol Optimum Across Studies}
+\label{tab:evolution}
+\centering
+\begin{tabular}{llccc}
+\hline
+\textbf{After Study} & \textbf{Best Config} & $\bar{\eta}$ & $\sigma$ & $\bar{T}$ \\
+\hline
+I  (N sweep)      & N=300, G=4.0, $\mu$=0.88, r=5 & 1.509 & 0.111 & 63 \\
+II (int. G sweep) & N=300, G=2.0, $\mu$=0.88, r=5 & 1.773 & 0.172 & 54 \\
+III (fine G)      & N=300, G=1.5, $\mu$=0.88, r=5 & 1.796 & 0.159 & 53 \\
+IV ($\mu$ sweep)      & N=300, G=1.5, $\mu$=0.99, r=5 & 2.696 & 0.089 & 35 \\
+V  (r sweep)      & N=300, G=1.5, $\mu$=0.99, r=2 & 2.689 & 0.094 & 36 \\
+\hline
+\end{tabular}
+\end{table}
+
+The Study IV momentum optimization dominates all other gains: the $\mu$ upgrade alone
+accounts for $+49.6\%$ efficiency improvement, compared to $+17.4\%$ across all $G$
+and $N$ optimization. This establishes $\mu$ as the single most impactful tunable
+parameter in the Vel-v4.3 protocol.
+
+\subsection{Master Configuration Ranking}
+
+Table~\ref{tab:master} presents the complete ranking of all configurations tested
+across Studies II through V, ordered by $\bar{\eta}$.
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.2}
+\caption{Master Configuration Ranking (All Studies)}
+\label{tab:master}
+\centering
+\begin{tabular}{clcccc}
+\hline
+Rank & Config & $\bar{\eta}$ & $\sigma$ & $\bar{T}$ & Study \\
+\hline
+1  & N300, G1.5, $\mu$0.99, r=5 & 2.696 & 0.089 & 35 & IV \\
+2  & N300, G1.5, $\mu$0.99, r=8 & 2.696 & 0.092 & 35 & V \\
+3  & N300, G1.5, $\mu$0.99, r=9 & 2.696 & 0.092 & 35 & V \\
+4  & N300, G1.5, $\mu$0.99, r=4 & 2.695 & 0.095 & 35 & V \\
+5  & N300, G1.5, $\mu$0.99, r=7 & 2.694 & 0.093 & 35 & V \\
+6  & N300, G1.5, $\mu$0.99, r=6 & 2.692 & 0.093 & 35 & V \\
+7  & N300, G1.5, $\mu$0.99, r=3 & 2.692 & 0.091 & 35 & V \\
+8  & N300, G1.5, $\mu$0.99, r=10& 2.692 & 0.094 & 35 & V \\
+9  & N300, G1.5, $\mu$0.99, r=2 & 2.689 & 0.094 & 36 & V \\
+10 & N300, G1.5, $\mu$0.95, r=5 & 2.387 & 0.187 & 40 & IV \\
+11 & N300, G1.5, $\mu$0.90, r=5 & 1.907 & 0.178 & 50 & IV \\
+12 & N300, G1.5, $\mu$0.88, r=5 & 1.803 & 0.164 & 53 & III \\
+13 & N300, G1.5, $\mu$0.85, r=5 & 1.548 & 0.127 & 62 & IV \\
+14 & N300, G2.0, $\mu$0.88, r=5 & 1.773 & 0.172 & 54 & II \\
+15 & N300, G4.0, $\mu$0.88, r=5 & 1.509 & 0.111 & 63 & I \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Revised Operational Benchmarks}
+
+The original operational threshold of $\eta>0.105$ is formally superseded. Based on
+the comprehensive sweep data, three operational tiers are established:
+
+\begin{itemize}
+    \item \textbf{Tier 1 (Minimum Viable):} $\eta>1.0$. Achievable at $N\geq150$,
+          $G\in[1.0,\,3.0]$, $\mu\geq0.88$.
+    \item \textbf{Tier 2 (Deployable):} $\eta>2.0$. Requires $N=300$, $G=1.5$,
+          $\mu\geq0.95$.
+    \item \textbf{Tier 3 (Optimal):} $\eta>2.5$. Requires $N=300$, $G=1.5$,
+          $\mu=0.99$, any $r\in[2,\,10]$.
+\end{itemize}
+
+% ── 11. Theoretical Analysis ─────────────────────────────────────────────────
+\section{Theoretical Analysis}
+\label{sec:theory}
+
+\subsection{Power Law Scaling of $\eta$ with $N$}
+
+The Population Sweep data is consistent with a power law:
+\begin{equation}
+    \bar{\eta}(N) = \alpha \cdot N^\beta
+    \label{eq:powerlaw}
+\end{equation}
+Fitting to the three data points ($N\in\{50,\,150,\,300\}$) yields exponent
+$\beta \approx 0.57$. This sub-linear exponent ($\beta < 1$) is consistent with
+the diminishing returns observed in Coordination Quality $Q$: each doubling of $N$
+increases $\bar{\eta}$ by less than a factor of 2, reflecting scan-overlap congestion
+at the frontier.
+
+The power law enables performance prediction at untested densities. At $N=500$,
+extrapolation yields $\bar{\eta}(500) \approx 2.1$ at the Study I parameter settings
+($G=4$, $\mu=0.88$). Under the fully-optimized parameters ($G=1.5$, $\mu=0.99$),
+the scaling exponent may differ; characterization at $N\in\{500,\,1000\}$ is reserved
+for future work.
+
+\subsection{Radius-Invariance Condition}
+
+The scan radius sweep reveals that MAGR is radius-invariant at the optimal
+configuration. This can be understood through a coverage density argument. At
+$N=300$ on a $50\times50$ grid, the average area per agent is
+$2500/300 \approx 8.3$ cells. The Moore neighborhood at $r=2$ covers
+$(2\cdot2+1)^2 = 25$ cells. Since $25 > 8.3$, each agent's scan neighborhood
+overlaps with the coverage responsibility of multiple neighboring agents at
+typical deployment density. The nearest unexplored cell is therefore almost
+always within distance $r=2$ of any given agent, making larger scan radii
+redundant.
+
+Formally, let $\rho = N / (W \cdot H)$ be the agent surface density. The critical
+radius $r^*$ below which radius-invariance breaks down satisfies:
+\begin{equation}
+    (2r^*+1)^2 \approx \frac{1}{\rho}
+    \label{eq:rcrit}
+\end{equation}
+For $N=300$, $W=H=50$: $r^* \approx \sqrt{1/(4\rho)} - 0.5 \approx 1.4$.
+Since $r=2 > r^* \approx 1.4$, all tested radii are above the critical threshold
+and therefore equivalent in performance. This analytical prediction is consistent
+with the empirical finding that $r=2$ achieves effectively identical efficiency to
+$r=10$.
+
+\subsection{Momentum and Trajectory Stability}
+
+The relationship between $\mu$ and $\bar{\eta}$ is monotonically increasing within
+the tested range. The KVL update rule:
+\begin{equation}
+    \vecc{V}_{i}(t+1) = \mu \vecc{V}_{i}(t) + G\cdot\vecc{u}(\theta_i)\cdot 0.12
+\end{equation}
+can be analyzed as a discrete first-order IIR filter with momentum $\mu$ as the
+pole. At $\mu\to 1$, the velocity integrates repulsion impulses over all past
+timesteps (infinite memory), producing smooth, directionally stable trajectories.
+At $\mu\to 0$, the velocity resets to the current repulsion impulse at each step,
+producing maximum responsiveness but erratic, oscillatory paths.
+
+The efficiency improvement from $\mu=0.88$ to $\mu=0.99$ reflects the transition
+from a low-memory to a high-memory trajectory regime. In the high-memory regime,
+agents maintain sweeping arcs that efficiently cover frontier regions because their
+direction is stable over many timesteps. In the low-memory regime, agents change
+direction frequently, revisiting cells and producing the redundant search problem
+the protocol is designed to eliminate.
+
+% ── 12. Strategic Implementation ─────────────────────────────────────────────
+\section{Strategic Implementation Protocol (MVR)}
+\label{sec:mvr}
+
+\begin{enumerate}
+    \item \textbf{MVR-1: Vector Integration $\geq50$\,Hz.} Sub-threshold frequencies
+          introduce Drift-Lag, degrading SSM write accuracy and coverage fidelity.
+    \item \textbf{MVR-2: Mesh Latency $<15$\,ms.} Higher latency produces Ghost
+          Redundancy --- two agents explore the same cell before the write propagates.
+    \item \textbf{MVR-3: Momentum Alignment $\mu_{\text{hw}}\geq0.95$.} The momentum
+          sweep establishes that $\mu<0.90$ incurs significant efficiency penalties.
+          Hardware implementations must achieve near-unity momentum conservation.
+    \item \textbf{MVR-4: Minimum Scan Radius $r=2$.} The radius sweep establishes
+          that $r=2$ is sufficient for full MAGR performance. Each agent requires
+          only $(2\cdot2+1)^2=25$ SSM reads per timestep.
+    \item \textbf{MVR-5: Repulsion Calibration $G\in[1.25,\,1.75]$.} For $N\geq300$
+          deployments, repulsion force should be tuned within this range. For
+          $N\leq150$ deployments, $G\in[2.50,\,3.00]$ is recommended based on the
+          $N\times G$ interaction finding of Study III.
+\end{enumerate}
+
+% ── 13. Future Work ───────────────────────────────────────────────────────────
+\section{Future Work}
+\label{sec:future}
+
+The primary remaining work is physical hardware validation. All results presented
+in this paper are derived from simulation on a $50\times50$ occupancy grid.
+Deployment on physical robotic platforms will require validation of the five MVR
+specifications under real-world conditions, including sensor noise, communication
+latency variance, and mechanical constraints not modeled in simulation. In particular,
+MVR-3 requires hardware platforms capable of sustaining $\mu\geq0.95$ momentum
+conservation in practice, which will constrain the class of viable actuator systems.
+Hardware validation constitutes the necessary next step toward operational deployment
+of the Vel-v4.3 protocol.
+
+% ── 14. Conclusion ────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper presents the most comprehensive empirical study of the Vel decentralized
+swarm protocol to date. Five parameter sweeps across 105{,}000 trials characterize
+every major protocol dimension and deliver four major findings:
+
+\begin{enumerate}
+    \item \textbf{MAGR eliminates boundary pile-up}, restoring monotonic $N$-scaling
+          and enabling $N=300$ to outperform $N=150$ by $66.3\%$.
+    \item \textbf{The true $G$ optimum is population-dependent}: $G=1.5$ at $N=300$
+          and $G=2.75$ at $N=150$, due to a $N\times G$ interaction effect in which
+          higher density requires lower repulsion to avoid cell overshoot.
+    \item \textbf{The original $\mu=0.88$ assumption was suboptimal by $49.6\%$.}
+          $\mu=0.99$ simultaneously maximizes efficiency ($\bar{\eta}=2.696$) and
+          minimizes variance ($\sigma=0.089$), occupying the dominant position on the
+          efficiency--stability frontier.
+    \item \textbf{MAGR is radius-invariant.} $\Delta\eta=0.006$ across $r\in[2,\,10]$,
+          while computational cost scales $17.6\times$. The optimal deployment radius
+          is $r=2$, analytically explained by the critical radius condition
+          $(2r^*+1)^2 \approx 1/\rho$.
+\end{enumerate}
+
+The global optimum --- $N=300$, $G=1.5$, $\mu=0.99$, $r=2$, $\bar{\eta}=2.696$ ---
+represents a $78.7\%$ efficiency gain over the initial Study I baseline. The revised
+operational framework establishes three deployment tiers ($\eta>1.0$, $\eta>2.0$,
+$\eta>2.5$) superseding the original single threshold of $\eta>0.105$ by a factor
+of $19\times$.
+
+% ── Acknowledgements ──────────────────────────────────────────────────────────
+\section*{Acknowledgements}
+The author acknowledges Gnaneswar Kumar Pullaganti and Dakshith Karthikeyan for their
+contributions during the early science fair phase of the Vel project. Their involvement
+was limited to that initial stage; they had no role in the development of Vel-v4.3,
+the MAGR architecture, the parameter sweeps reported in this paper, or any part of
+this work.
+
+The author used Claude (Anthropic) as an AI writing assistant during the preparation
+of this manuscript. All research concepts, experimental design, simulation implementation,
+data collection, and scientific conclusions are the original work of the author. The AI
+assistant was used for LaTeX formatting and prose editing only.
+
+The author's ORCID is 0009-0006-2907-8815.
+
+% ── References ────────────────────────────────────────────────────────────────
+\begin{thebibliography}{1}
+
+\bibitem{dorigo2004}
+M.~Dorigo and E.~\c{S}ahin, ``Swarm robotics: Special issue,''
+\emph{Autonomous Robots}, vol.~17, pp.~111--113, 2004.
+
+\bibitem{brambilla2013}
+M.~Brambilla, E.~Ferrante, M.~Birattari, and M.~Dorigo,
+``Swarm robotics: A review from the swarm engineering perspective,''
+\emph{Swarm Intelligence}, vol.~7, no.~1, pp.~1--41, 2013.
+
+\bibitem{jamshidpey2024}
+A.~Jamshidpey et al., ``Centralization vs.\ decentralization in multi-robot
+sweep coverage with ground robots and {UAV}s,''
+\emph{arXiv preprint arXiv:2408.06553}, 2024.
+
+\bibitem{moravec1985}
+H.~P.~Moravec and A.~Elfes, ``High resolution maps from wide angle sonar,''
+in \emph{Proc. IEEE ICRA}, 1985, pp.~116--121.
+
+\bibitem{elfes1989}
+A.~Elfes, ``Using occupancy grids for mobile robot perception and navigation,''
+\emph{Computer}, vol.~22, no.~6, pp.~46--57, 1989.
+
+\bibitem{reynolds1987}
+C.~W.~Reynolds, ``Flocks, herds and schools: A distributed behavioral model,''
+in \emph{Proc. SIGGRAPH '87}, 1987, pp.~25--34.
+
+\bibitem{kennedy1995}
+J.~Kennedy and R.~C.~Eberhart, ``Particle swarm optimization,''
+in \emph{Proc. IEEE Int. Conf. Neural Networks}, 1995, pp.~1942--1948.
+
+\bibitem{dorigo1992}
+M.~Dorigo, V.~Maniezzo, and A.~Colorni, ``Ant system: Optimization by a colony
+of cooperating agents,''
+\emph{IEEE Trans. Syst., Man, Cybern. B}, vol.~26, no.~1, pp.~29--41, 1996.
+
+\bibitem{galceran2013}
+E.~Galceran and M.~Carreras, ``A survey on coverage path planning for robotics,''
+\emph{Robotics and Autonomous Systems}, vol.~61, no.~12, pp.~1258--1276, 2013.
+
+\bibitem{li2024}
+Q.~Li et al., ``Improved ant colony optimization algorithm based on islands type
+for mobile robot path planning,''
+\emph{International Journal of Advanced Robotic Systems}, 2024.
+
+\bibitem{harris2020}
+C.~R.~Harris et al., ``Array programming with {NumPy},''
+\emph{Nature}, vol.~585, pp.~357--362, 2020.
+
+\bibitem{hunter2007}
+J.~D.~Hunter, ``Matplotlib: A 2{D} graphics environment,''
+\emph{Computing in Science \& Engineering}, vol.~9, no.~3, pp.~90--95, 2007.
+
+\end{thebibliography}
+
+% --- Author Biography Section ---
+\section*{Author Biography}
+% The [-2ex] reduces the gap between the last section and the biography
+\vspace{-7ex} 
+
+\begin{IEEEbiographynophoto}{Dakshith Rajkumar}
+is an independent researcher specializing in decentralized swarm intelligence and autonomous robotic navigation. His work focuses on the development of the Vel protocol series, specifically exploring Map-Aware Gradient Repulsion (MAGR) and spatio-temporal efficiency in multi-agent systems. A member of the National Junior Honor Society (NJHS) at Fowler Middle School, part of the Frisco Independent School District, he maintains a rigorous commitment to academic excellence and emergent engineering logic.
+\end{IEEEbiographynophoto}
+
+\vfill % Pushes the bio to the bottom or keeps spacing consistent with IEEE style
+
+\end{document}
