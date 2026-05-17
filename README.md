@@ -2,7 +2,7 @@
 
 Vel Swarm Protocol (Private)
 
-📌 Project Overview
+Project Overview
 
 The Vel Swarm Protocol is an internal research and development project focused on creating a high-performance, decentralized coordination layer for autonomous swarms. This protocol is engineered for low-latency, agent-to-agent synchronization in complex environments where centralized command is either impossible or inefficient.
 
@@ -24,7 +24,7 @@ The repository is organized to support a full research-to-implementation lifecyc
 /Non-Disclosure Agreement: Legal framework and confidentiality guidelines governing project access.
 
 
-🧪 Core Research Pillars
+Core Research Pillars
 
 Decentralized Mesh Networking: Enabling robust communication between agents without a single point of failure.
 
@@ -33,7 +33,7 @@ Swarm Intelligence (SI): Collective behavior patterns inspired by biological sys
 Low-Latency Synchronization: Ensuring state-consistency across the swarm within millisecond thresholds.
 
 
-🛠 Tech Stack
+Tech Stack
 
 Logic/Engine: JavaScript (Node.js/Web-based simulations).
 
@@ -42,7 +42,7 @@ Research/Documentation: LaTeX (TeX).
 
 Data Analysis: Python.
 
-🚦 Internal Status: Deployment Ready
+Internal Status: Deployment Ready
 
 The current main branch reflects the completed architecture for the initial protocol specification.
 
@@ -58,7 +58,7 @@ Key Milestones Completed:
 [x] Implementation of core behavioral heuristics.
 
 
-🔒 Confidentiality
+Confidentiality
 
 Access to this repository is restricted to authorized contributors only. All materials within the /papers and /src directories are proprietary and subject to the terms in the Non-Disclosure Agreement folder.
 
