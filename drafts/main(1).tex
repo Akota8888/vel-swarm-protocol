@@ -33,7 +33,7 @@
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
-    pdftitle={Vel-v5.0: A Scalable Multi-Threaded Swarm Field Protocol for 3D Volumetric Voxel Space Dominance},
+    pdftitle={Vel-v5.5: A Scalable Multi-Threaded Swarm Field Protocol for 3D Volumetric Voxel Space Dominance},
     pdfauthor={Dakshith Rajkumar},
 }
 
@@ -42,7 +42,7 @@
 
 \begin{document}
 
-\title{\LARGE \bf Vel-v5.0: A Scalable Multi-Threaded Swarm Protocol for 3D Volumetric Voxel Space Dominance under Aerodynamic Wind Gust Perturbations}
+\title{\LARGE \bf Vel-v5.5: A Scalable Multi-Threaded Swarm Protocol for 3D Volumetric Voxel Space Dominance under Aerodynamic Wind Gust Perturbations}
 
 \author{
     Dakshith Rajkumar \\
@@ -63,27 +63,27 @@ org/0009-0006-2907-8815}{0009-0006-2907-8815}
 
 % ── ABSTRACT ─────────────────────────────────────────────────────────────────
 \begin{abstract}
-This paper presents the theoretical formalization, parallel computing framework, and massive-scale empirical validation of the Vel-v5.0 swarm protocol. Moving beyond restricted 2D formulations, Vel-v5.0 introduces a decentralized protocol optimized for 3D continuous flight mechanics over non-convex voxel elevations. We model multi-agent coordinate-free navigation using Map-Aware Gradient Repulsion (MAGR) subject to constant gravitational drift and stochastic, high-velocity wind gust perturbations ($G$). We provide a rigorous continuous-time Lyapunov-like convergence proof under LaSalle's Invariance Principle to guarantee asymptotic coverage, alongside a stochastic boundedness analysis confirming trajectory containment within the bounded manifold. To validate these analytical guarantees, we built a highly parallelized multi-threaded simulation engine and executed $10{,}000{,}000$ independent flight trials. The empirical results demonstrate a clear phase transition in convergence behavior. Under the optimized configuration ($N=150$, $\mu=0.98$, $r=8$), the protocol successfully mitigates boundary pile-up instabilities. The cumulative average efficiency converges asymptotically to $\overline{\eta} = 0.3523$ with an extremely low system rolling variance ($\sigma = 0.0084$). The resulting performance metrics show that MAGR establishes a mathematically robust, scale-invariant foundation for physical 3D multi-rotor deployments.
+This paper presents the theoretical formalization, parallel computing framework, and massive-scale empirical validation of the vel-v5.5 swarm protocol. Moving beyond restricted 2D formulations, vel-v5.5 introduces a decentralized protocol optimized for 3D continuous flight mechanics over non-convex voxel elevations. We model multi-agent coordinate-free navigation using Map-Aware Gradient Repulsion (MAGR) subject to constant gravitational drift and stochastic, high-velocity wind gust perturbations ($G$). We provide a rigorous continuous-time Lyapunov-like convergence proof under LaSalle's Invariance Principle to guarantee asymptotic coverage, alongside a stochastic boundedness analysis confirming trajectory containment within the bounded manifold. To validate these analytical guarantees, we built a highly parallelized multi-threaded simulation engine and executed $10{,}000{,}000$ independent flight trials. The empirical results demonstrate a clear phase transition in convergence behavior. Under the optimized configuration ($N=150$, $\mu=0.98$, $r=8$), the protocol successfully mitigates boundary pile-up instabilities. The cumulative average efficiency converges asymptotically to $\overline{\eta} = 0.3523$ with an extremely low system rolling variance ($\sigma = 0.0084$). The resulting performance metrics show that MAGR establishes a mathematically robust, scale-invariant foundation for physical 3D multi-rotor deployments.
 \end{abstract}
 
 % ── INTRODUCTION ──────────────────────────────────────────────────────────────
 \section{Introduction}
 \label{sec:intro}
 
-\IEEEPARstart{A}{utonomous} spatial exploration and volumetric coverage utilizing decentralized multi-agent robotic swarms represent a critical capability across a diverse spectrum of modern technological domains. These applications include high-fidelity planetary surface mapping, disaster recovery search-and-rescue operations, atmospheric chemical plume tracking, and the structural inspection of complex industrial facilities \cite{latombe1991, brambilla2013}. Coordinated control of such systems without relying on a centralized command infrastructure is a challenging problem in control theory and robotics. In the absence of a global coordinator, decentralized swarms must rely entirely on localized sensing, emergent behavioral rules, and distributed algorithms to achieve global mission objectives. A primary bottleneck in coordinating these systems without a centralized controller is the \textit{Redundant Search Problem}: the rapid decay in coverage efficiency that occurs as independent agents repeatedly re-traverse previously explored volumes. This inefficiency stems directly from a lack of shared spatial awareness and the absence of a unified coordinator to partition the workspace.
+\IEEEPARstart{A}{utonomous} spatial exploration and volumetric coverage utilizing decentralized multi-agent robotic swarms represent a critical capability across a diverse spectrum of modern technological domains. These applications include high-fidelity planetary surface mapping, disaster recovery search-and-rescue operations, atmospheric chemical plume tracking, and the structural inspection of complex industrial facilities \cite{latombe1991, brambilla2013review}. Coordinated control of such systems without relying on a centralized command infrastructure is a challenging problem in control theory and robotics. In the absence of a global coordinator, decentralized swarms must rely entirely on localized sensing, emergent behavioral rules, and distributed algorithms to achieve global mission objectives. A primary bottleneck in coordinating these systems without a centralized controller is the \textit{Redundant Search Problem}: the rapid decay in coverage efficiency that occurs as independent agents repeatedly re-traverse previously explored volumes. This inefficiency stems directly from a lack of shared spatial awareness and the absence of a unified coordinator to partition the workspace.
 
 To force agents to disperse and minimize overlapping search paths, classical decentralized swarm architectures often employ artificial potential fields (APF) \cite{saska2014cooperative}. Under these paradigms, agents generate virtual repulsive forces that push them away from nearby neighbors, driving the swarm to expand into the environment. However, when these standard APF models are deployed in bounded 3D workspaces containing complex, non-convex terrain profiles, they suffer from a severe and systemic failure mode defined as \textbf{Boundary Accumulation Divergence (BAD)} \cite{saska2014cooperative}. Because traditional potential fields project isotropic, radially symmetric forces, they inevitably drive agents outward toward the physical boundaries of the workspace. Once the agents reach these outer perimeters, the lack of spatial context and directional awareness causes them to crowd along the wall surfaces. This boundary crowding results in severe localized congestion, high-frequency kinetic oscillations, and complete coverage stagnation in the interior volumes of the environment. As the agent density $N$ scales, this crowding behavior becomes highly chaotic, triggering an efficiency inversion where larger swarms exhibit lower spatial coverage rates than smaller, less congested configurations.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/analysis_plots/dashboards/Aero_Performance_Dashboard.png}
-\caption{The 3D Voxel Flight Physics environment implemented in the Vel-v5.0 simulation engine, demonstrating multi-agent coordinate-free navigation and trajectory traces over a non-convex elevation field $h(x,z)$.}
+\caption{The 3D Voxel Flight Physics environment implemented in the vel-v5.5 simulation engine, demonstrating multi-agent coordinate-free navigation and trajectory traces over a non-convex elevation field $h(x,z)$.}
 \label{fig:flight_env}
 \end{figure}
 
-To resolve this fundamental limitation, this paper introduces the \textbf{Vel-v5.0 protocol}. We reformulate the decentralized coverage problem as a continuous 3D aerodynamic flight coordination problem over a non-convex voxelized elevation field. Rather than treating agent dispersion and spatial mapping as decoupled systems, the Vel-v5.0 protocol models the swarm and the surrounding environment as a coupled, continuous-time variational system. Each active agent serves as a moving sensor node that maps local voxels in real-time, while concurrently projecting a non-isotropic, map-aware gradient field that repels nearby neighbors. By utilizing a shared binary occupancy grid as an implicit coordination layer, the protocol eliminates the need for high-overhead, direct agent-to-agent communication, ensuring high fault tolerance and low network bandwidth requirements.
+To resolve this fundamental limitation, this paper introduces the \textbf{vel-v5.5 protocol}. We reformulate the decentralized coverage problem as a continuous 3D aerodynamic flight coordination problem over a non-convex voxelized elevation field. Rather than treating agent dispersion and spatial mapping as decoupled systems, the vel-v5.5 protocol models the swarm and the surrounding environment as a coupled, continuous-time variational system. Each active agent serves as a moving sensor node that maps local voxels in real-time, while concurrently projecting a non-isotropic, map-aware gradient field that repels nearby neighbors. By utilizing a shared binary occupancy grid as an implicit coordination layer, the protocol eliminates the need for high-overhead, direct agent-to-agent communication, ensuring high fault tolerance and low network bandwidth requirements.
 
-The development of the Vel-v5.0 protocol represents a significant evolution over previous iterations, transitioning from simple 2D cellular automaton rules to continuous-time, high-fidelity 3D flight physics. To rigorously validate the mathematical guarantees of the protocol, we developed a highly parallelized, multi-threaded simulation engine utilizing asynchronous Web Worker threads. Through this platform, we executed $10{,}000{,}000$ independent flight trials, systematically sweeping the multi-dimensional parameter space across agent population ($N$), repulsion factor ($G$), and momentum coefficient ($\mu$). The resulting empirical dataset confirms that Map-Aware Gradient Repulsion (MAGR) successfully eliminates Boundary Accumulation Divergence, restoring clean, monotonic population scaling even under high-intensity aerodynamic wind perturbations.
+The development of the vel-v5.5 protocol represents a significant evolution over previous iterations, transitioning from simple 2D cellular automaton rules to continuous-time, high-fidelity 3D flight physics. To rigorously validate the mathematical guarantees of the protocol, we developed a highly parallelized, multi-threaded simulation engine utilizing asynchronous Web Worker threads. Through this platform, we executed $10{,}000{,}000$ independent flight trials, systematically sweeping the multi-dimensional parameter space across agent population ($N$), repulsion factor ($G$), and momentum coefficient ($\mu$). The resulting empirical dataset confirms that Map-Aware Gradient Repulsion (MAGR) successfully eliminates Boundary Accumulation Divergence, restoring clean, monotonic population scaling even under high-intensity aerodynamic wind perturbations.
 
 The remainder of this paper is structured as follows. Section~\ref{sec:related} provides a comprehensive review of related literature in 3D volumetric coverage and swarm intelligence. Section~\ref{sec:formulation} details the system mathematical formulation, continuous-time flight kinematics, and the analytical derivation of the 3D MAGR forces. Section~\ref{sec:theory} presents the formal variational convergence and stochastic boundedness proofs. Section~\ref{sec:simulation} describes the architecture of our multi-threaded parallel execution engine. Section~\ref{sec:results} provides an exhaustive analysis of the empirical results from our 10-million trial campaign. Section~\ref{sec:mvr} outlines the Minimum Viable Requirements (MVR) for physical deployments, and Section~\ref{sec:conclusion} concludes the paper with a discussion of future research directions.
 
@@ -94,13 +94,13 @@ The remainder of this paper is structured as follows. Section~\ref{sec:related} 
 The design of decentralized coverage protocols sits at the intersection of several established fields in robotics, control theory, and swarm intelligence.
 
 \subsection{3D Volumetric Coverage Control}
-Extending traditional 2D coverage paradigms—such as Centroidal Voronoi Tessellations (CVT) and Lloyd's algorithm \cite{lloyd1982, cortes2004}—to 3D spatial volumes introduces extreme computational and geometric complexity. Computing 3D Voronoi polyhedrons in real-time requires continuous, high-precision positioning data of all neighboring agents. This, in turn, demands high-bandwidth communication links and substantial onboard processing power, which are often unavailable on resource-constrained micro-aerial vehicle (MAV) platforms. Furthermore, classical CVT formulations are inherently static and struggle to adapt to active, exploratory mapping scenarios where the spatial priority field dynamically evolves as regions are mapped. In contrast, the Vel-v5.0 protocol achieves emergent volumetric coverage through localized, coordinate-blind gradient descent on a binary voxel grid, significantly reducing the onboard computational footprint and eliminating the need for continuous inter-agent communication.
+Extending traditional 2D coverage paradigms—such as Centroidal Voronoi Tessellations (CVT) and Lloyd's algorithm \cite{lloyd1982, cortes2004}—to 3D spatial volumes introduces extreme computational and geometric complexity. Computing 3D Voronoi polyhedrons in real-time requires continuous, high-precision positioning data of all neighboring agents. This, in turn, demands high-bandwidth communication links and substantial onboard processing power, which are often unavailable on resource-constrained micro-aerial vehicle (MAV) platforms. Furthermore, classical CVT formulations are inherently static and struggle to adapt to active, exploratory mapping scenarios where the spatial priority field dynamically evolves as regions are mapped. In contrast, the vel-v5.5 protocol achieves emergent volumetric coverage through localized, coordinate-blind gradient descent on a binary voxel grid, significantly reducing the onboard computational footprint and eliminating the need for continuous inter-agent communication.
 
 \subsection{Frontier-Based 3D Exploration}
-Frontier-based exploration architectures identify the boundaries between mapped free space and unmapped space, directing agents to navigate toward these "frontiers" to expand the map \cite{yamauchi1997}. While highly efficient, classical 3D frontier detection is a centralized process that requires global map synchronization and complex path-planning algorithms (e.g., $A^*$ search or Fast Marching Methods) to compute collision-free trajectories to the frontiers. This centralized planning bottleneck scales poorly with the number of agents and is highly vulnerable to single-point-of-failure network drops. The Vel-v5.0 protocol bridges this gap by achieving the target attraction of frontier-based schemes through a purely localized, reactive potential field, avoiding the need for global trajectory planning or explicit frontier tracking.
+Frontier-based exploration architectures identify the boundaries between mapped free space and unmapped space, directing agents to navigate toward these "frontiers" to expand the map \cite{yamauchi1997}. While highly efficient, classical 3D frontier detection is a centralized process that requires global map synchronization and complex path-planning algorithms (e.g., $A^*$ search or Fast Marching Methods) to compute collision-free trajectories to the frontiers. This centralized planning bottleneck scales poorly with the number of agents and is highly vulnerable to single-point-of-failure network drops. The vel-v5.5 protocol bridges this gap by achieving the target attraction of frontier-based schemes through a purely localized, reactive potential field, avoiding the need for global trajectory planning or explicit frontier tracking.
 
 \subsection{Decentralized Self-Organizing Swarms}
-Robotics researchers have demonstrated that decentralized self-organizing swarms can achieve competitive coverage metrics while maintaining high fault tolerance \cite{brambilla2013}. To operate without GPS or global coordinate systems, these swarms often use local potential field methods to guide agent dispersion. However, as documented by Saska et al. \cite{saska2014cooperative}, potential-field-based swarms suffer from severe spatial instabilities when navigating near physical boundaries or non-convex obstacles. The MAGR architecture presented in this paper explicitly addresses these boundary instabilities by modeling the physical perimeters as a localized, non-convex distance field gradient, ensuring that the repulsive force vector actively redirects agents into open, unexplored spaces rather than trapping them against walls.
+Robotics researchers have demonstrated that decentralized self-organizing swarms can achieve competitive coverage metrics while maintaining high fault tolerance \cite{brambilla2013review}. To operate without GPS or global coordinate systems, these swarms often use local potential field methods to guide agent dispersion. However, as documented by Saska et al. \cite{saska2014cooperative}, potential-field-based swarms suffer from severe spatial instabilities when navigating near physical boundaries or non-convex obstacles. The MAGR architecture presented in this paper explicitly addresses these boundary instabilities by modeling the physical perimeters as a localized, non-convex distance field gradient, ensuring that the repulsive force vector actively redirects agents into open, unexplored spaces rather than trapping them against walls.
 
 \subsection{High-Throughput Parallel Simulation in Robotics}
 The validation of decentralized swarm protocols is often limited by the computational scale of the simulation environments. Many studies in the literature rely on small sample sizes (typically 10 to 50 trials) to draw conclusions about swarm stability and efficiency. Such limited datasets are highly susceptible to statistical anomalies and fail to fully capture the chaotic phase transitions that occur in high-density multi-agent systems. Our work addresses this limitation by proposing an asynchronous, multi-threaded parallel simulation framework. By leveraging multi-core parallelization, we execute $10{,}000{,}000$ independent trials, establishing an unprecedented level of statistical rigor and enabling the precise mapping of the swarm's multi-dimensional parameter phase space.
@@ -222,7 +222,7 @@ where the restitution coefficient is set to a constant $\epsilon = -0.45$, simul
 \section{Theoretical Convergence \& Boundedness Analysis}
 \label{sec:theory}
 
-To establish rigorous mathematical guarantees for the Vel-v5.0 protocol, we present formal stability and boundedness theorems governing the coupled agent-field dynamical system.
+To establish rigorous mathematical guarantees for the vel-v5.5 protocol, we present formal stability and boundedness theorems governing the coupled agent-field dynamical system.
 
 \subsection{Proof of Theorem 1: Asymptotic Volume Coverage}
 \begin{theorem}[Asymptotic Volume Coverage]
@@ -274,6 +274,10 @@ To prove asymptotic convergence, we define the invariant set $\mathcal{S} = \{(I
 \end{equation}
 Under LaSalle's Invariance Principle, the system trajectories are guaranteed to converge asymptotically to the largest invariant set contained within $\mathcal{S}$. In this set, agent velocities are zero, and spatial variations in information are fully minimized. Since any remaining unmapped volumes ($I(\mathbf{x}, t) < 1$) exert a non-zero attraction gradient $\nabla_{\mathbf{p}} U_{\text{expl}}(\mathbf{p}_i) \neq \mathbf{0}$ that destabilizes stationary agents, the only stable invariant equilibrium state is $I(\mathbf{x}, t) = 1$ almost everywhere across $\Omega$, completing the proof.
 \end{proof}
+
+\begin{remark}
+Theorem~1 establishes asymptotic coverage under the nominal, disturbance-free dynamics used in the proof ($\mathbf{w}_{\text{gust}}(t) = \mathbf{0}$, $\mathbf{g}_{\text{drift}} = \mathbf{0}$). The empirical campaign in Section~\ref{sec:results} instead operates under nonzero wind gust intensity $G > 0$ and nonzero gravitational drift, conditions outside the formal scope of this proof. We do not claim that Theorem~1 extends analytically to the stochastic case; Theorem~2 separately bounds the expected kinetic energy of agents under gust perturbation, but it does not establish coverage completeness. The empirical results in Section~\ref{sec:results} should therefore be read as evidence of practical stability and bounded efficiency under disturbance, rather than as direct empirical confirmation of Theorem~1's asymptotic coverage guarantee. Closing this analytical gap -- extending the Lyapunov argument to the perturbed system, e.g. via a stochastic LaSalle-type invariance result -- is left to future work.
+\end{remark}
 
 \subsection{Proof of Theorem 2: Stochastic Velocity Boundedness}
 \begin{theorem}[Stochastic Velocity Boundedness]
@@ -358,7 +362,7 @@ To bypass standard thread-blocking issues, we use high-speed custom pseudorandom
 This mathematical sequence generates values across the interval $[0, 1)$ without memory leaks, allowing the worker threads to process up to $150{,}000$ flight steps per second per core.
 
 \begin{algorithm}[H]
-\caption{Vel-v5.0 Volumetric Coverage Loop}
+\caption{vel-v5.5 Volumetric Coverage Loop}
 \label{alg:simulation_loop}
 \begin{algorithmic}[1]
 \Procedure{RunFlightTrial}{$N, G, \mu$}
@@ -403,7 +407,7 @@ As shown in Fig.~\ref{fig:figG1}, the cumulative average spatio-temporal efficie
     \lim_{K \to \infty} \overline{\eta} = 0.3523
     \label{eq:limit_mean}
 \end{equation}
-This flat, stable line across $10^7$ iterations provides definitive empirical proof that the Vel-v5.0 protocol remains structurally stable under continuous wind gust disturbances.
+This flat, stable line across $10^7$ iterations provides definitive empirical proof that the vel-v5.5 protocol remains structurally stable under continuous wind gust disturbances.
 
 \subsection{Aerodynamic Gust Impact on Spatio-Temporal Efficiency}
 The impact of wind gust intensity $G$ on the exploration efficiency is illustrated in the violin plots of Fig.~\ref{fig:figG2} and the Probability Density Functions (PDF) of Fig.~\ref{fig:figG4}.
@@ -461,7 +465,7 @@ To assess the long-term reliability of the system, Fig.~\ref{fig:figG7} plots th
 \section{Strategic Implementation Protocol (MVR)}
 \label{sec:mvr}
 
-To transition the optimized 3D Vel-v5.0 protocol onto physical quadrotor platforms, we establish five mandatory \textbf{Minimum Viable Requirements (MVR)}:
+To transition the optimized 3D vel-v5.5 protocol onto physical quadrotor platforms, we establish five mandatory \textbf{Minimum Viable Requirements (MVR)}:
 
 \begin{enumerate}
     \item \textbf{MVR-1: Onboard Controller Frequency $\geq 50$ Hz.} Trajectory calculations must run at high frequency to maintain positioning accuracy in bounded 3D voxel spaces.
@@ -475,11 +479,11 @@ To transition the optimized 3D Vel-v5.0 protocol onto physical quadrotor platfor
 \section{Conclusion \& Future Work}
 \label{sec:conclusion}
 
-This paper has presented the theoretical formalization and multi-threaded characterization of the Vel-v5.0 protocol. By extending the model to 3D continuous flight kinematics and validating it across $10{,}000{,}000$ independent trials, we have demonstrated that the protocol achieves highly stable volumetric coverage under stochastic wind disturbances. Future work will focus on deploying this 3D flight engine onto physical quadrotor hardware to validate these stability and convergence properties in real-world conditions.
+This paper has presented the theoretical formalization and multi-threaded characterization of the vel-v5.5 protocol. By extending the model to 3D continuous flight kinematics and validating it across $10{,}000{,}000$ independent trials, we have demonstrated that the protocol achieves highly stable volumetric coverage under stochastic wind disturbances. Future work will focus on deploying this 3D flight engine onto physical quadrotor hardware to validate these stability and convergence properties in real-world conditions.
 
 % ── ACKNOWLEDGEMENTS ──────────────────────────────────────────────────────────
 \section*{Acknowledgements}
-The author acknowledges Gnaneswar Kumar Pullaganti and Dakshith Karthikeyan for their contributions during the early science fair phase of the Vel project. Their involvement was limited to that initial stage; they had no role in the development of Vel-v5.0, the 3D voxel flight engine, the parallel sweeps reported in this paper, or any part of this work.
+The author acknowledges Gnaneswar Kumar Pullaganti and Dakshith Karthikeyan for their contributions during the early science fair phase of the Vel project. Their involvement was limited to that initial stage; they had no role in the development of vel-v5.5, the 3D voxel flight engine, the parallel sweeps reported in this paper, or any part of this work.
 
 The author used Gemini (Google) as an AI assistant during the preparation of this manuscript. All research concepts, experimental design, simulation implementation, data collection, and scientific conclusions are the original work of the author. The AI assistant was used for LaTeX formatting and prose editing only.
 
@@ -499,6 +503,18 @@ S.~Kernbach, Ed., ``Architectures and control of networked robotic systems,'' in
 
 \bibitem{brambilla2013review}
 M.~Brambilla, E.~Ferrante, M.~Birattari, and M.~Dorigo, ``Swarm robotics: a review from the swarm engineering perspective,'' \emph{Swarm Intelligence}, vol.~7, no.~1, pp. 1--41, 2013.
+
+\bibitem{latombe1991}
+J.-C.~Latombe, \emph{Robot Motion Planning}. Boston, MA: Kluwer Academic Publishers, 1991.
+
+\bibitem{lloyd1982}
+S.~Lloyd, ``Least squares quantization in {PCM},'' \emph{IEEE Trans. Inf. Theory}, vol.~28, no.~2, pp. 129--137, 1982.
+
+\bibitem{cortes2004}
+J.~Cortés, S.~Martínez, T.~Karatas, and F.~Bullo, ``Coverage control for mobile sensing networks,'' \emph{IEEE Trans. Robot. Autom.}, vol.~20, no.~2, pp. 243--255, 2004.
+
+\bibitem{yamauchi1997}
+B.~Yamauchi, ``A frontier-based approach for autonomous exploration,'' in \emph{Proc. IEEE Int. Symp. Comput. Intell. Robot. Autom. (CIRA)}, 1997, pp. 146--151.
 
 \bibitem{dorigo2021past}
 M.~Dorigo, G.~Theraulaz, and V.~Trianni, ``Swarm robotics: Past, present, and future [point of view],'' \emph{Proc. IEEE}, vol.~109, no.~7, pp. 1152--1165, 2021.
