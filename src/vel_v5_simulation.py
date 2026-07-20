@@ -51,7 +51,7 @@ START_POS = np.array([16.0, 28.0, 16.0])
 
 GUST_LEVELS = [0, 2, 4, 6, 8]     # include a G-analog gust control, mirroring v4.3's G=0 control idea
 TRIALS_PER_GUST_LEVEL = 500
-OUTPUT_CSV = "vel_v5_trials_v43_faithful.csv"
+OUTPUT_CSV = "vel_v5_trials_v43_faithful_1.csv"
 RANDOM_SEED = None
 
 # At ~1.9s/trial, 500 trials x 5 gust levels = 2500 trials ~= 80 minutes on
