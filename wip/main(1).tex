@@ -1,17 +1,10 @@
-\documentclass[letterpaper, 10pt, conference]{IEEEtran}
+\documentclass[10pt,journal]{IEEEtran}
 
-\IEEEoverridecommandlockouts
-
-% --- COMPILATION GUARD AND LIBRARIES ---
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
-
-% Keep default standard system fonts for math compatibility in conference pipelines
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{amsfonts}
-\usepackage{amsthm}
 \usepackage{mathtools}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -22,490 +15,782 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{cite}
-
-% Theorem Environments for Rigorous Mathematical Guardrails
-\newtheorem{theorem}{Theorem}
-\newtheorem{lemma}{Lemma}
-\newtheorem{definition}{Definition}
-\newtheorem{assumption}{Assumption}
-\newtheorem{remark}{Remark}
-
 \usepackage{hyperref}
-\hypersetup{
-    colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
-    pdftitle={Vel-v5.5: A Scalable Multi-Threaded Swarm Field Protocol for 3D Volumetric Voxel Space Dominance},
-    pdfauthor={Dakshith Rajkumar},
-}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
+  pdftitle={Vel-v5.5: A Decentralized 3D Volumetric Coverage Protocol under Aerodynamic Wind Perturbations},
+  pdfauthor={Dakshith Rajkumar}}
 
 \newcommand{\vecc}[1]{\vec{\mathbf{#1}}}
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
 
 \begin{document}
 
-\title{\LARGE \bf Vel-v5.5: A Scalable Multi-Threaded Swarm Protocol for 3D Volumetric Voxel Space Dominance under Aerodynamic Wind Gust Perturbations}
+\title{Vel-v5.5: A Decentralized 3D Volumetric Coverage Protocol\\ under Aerodynamic Wind Gust Perturbations}
 
-\author{
-    Dakshith Rajkumar \\
-    Independent Researcher \\
-    National Junior Honor Society (NJHS), Fowler Middle School \\
-    Frisco Independent School District \\
-    Frisco, TX, USA \\
-    \texttt{daks2edu@gmail.com} \\
-    ORCID: \href{https://orcid.
-org/0009-0006-2907-8815}{0009-0006-2907-8815}
-}
+\author{Dakshith~Rajkumar,~\textit{Independent Researcher}
+\thanks{D. Rajkumar is an Independent Researcher. E-mail: daks2edu@gmail.com. ORCID: 0009-0006-2907-8815.}}
 
-
+\markboth{Preprint, 2026}{Rajkumar: Vel-v5.5}
 
 \maketitle
-\thispagestyle{empty}
-\pagestyle{empty}
 
-% ── ABSTRACT ─────────────────────────────────────────────────────────────────
 \begin{abstract}
-This paper presents the theoretical formalization, parallel computing framework, and massive-scale empirical validation of the vel-v5.5 swarm protocol. Moving beyond restricted 2D formulations, vel-v5.5 introduces a decentralized protocol optimized for 3D continuous flight mechanics over non-convex voxel elevations. We model multi-agent coordinate-free navigation using Map-Aware Gradient Repulsion (MAGR) subject to constant gravitational drift and stochastic, high-velocity wind gust perturbations ($G$). We provide a rigorous continuous-time Lyapunov-like convergence proof under LaSalle's Invariance Principle to guarantee asymptotic coverage, alongside a stochastic boundedness analysis confirming trajectory containment within the bounded manifold. To validate these analytical guarantees, we built a highly parallelized multi-threaded simulation engine and executed $10{,}000{,}000$ independent flight trials. The empirical results demonstrate a clear phase transition in convergence behavior. Under the optimized configuration ($N=150$, $\mu=0.98$, $r=8$), the protocol successfully mitigates boundary pile-up instabilities. The cumulative average efficiency converges asymptotically to $\overline{\eta} = 0.3523$ with an extremely low system rolling variance ($\sigma = 0.0084$). The resulting performance metrics show that MAGR establishes a mathematically robust, scale-invariant foundation for physical 3D multi-rotor deployments.
+This paper presents Vel-v5.5, a three-dimensional extension of the Vel-v4.3
+decentralized swarm coverage protocol, and its empirical characterization
+under stochastic aerodynamic wind gust perturbations. Vel-v5.5 retains the
+core Map-Aware Gradient Repulsion (MAGR) steering law validated in Vel-v4.3
+-- each agent scans a local Moore neighborhood of a shared occupancy grid and
+steers directly toward the nearest unexplored cell -- and extends it from a
+two-dimensional cell grid to a three-dimensional voxel grid, adding
+gravitational drift, stochastic wind gust perturbation, and elastic boundary
+collision physics appropriate to aerial multi-rotor deployment. We report a
+full factorial sweep of wind gust intensity $G_{\text{wind}} \in \{0, 2, 4,
+6, 8\}$ at fixed population $N=150$, momentum $\mu=0.99$, MAGR steering
+factor $G=1.5$, and scan radius $r=5$, comprising 2{,}500 independent trials
+(500 per gust level) on a $32\times32\times32$ voxel grid. Results show that
+zero-gust operation collapses spatio-temporal efficiency to
+$\bar{\eta}=0.236$ ($\sigma=0.0059$), that efficiency rises sharply under
+mild-to-moderate gust and peaks at $G_{\text{wind}}=4$
+($\bar{\eta}=0.666$, $\sigma=0.0034$), and that efficiency declines modestly
+under high-intensity gust ($\bar{\eta}=0.637$ at $G_{\text{wind}}=8$). We
+interpret the zero-gust collapse as evidence that deterministic frontier
+steering alone is prone to trapping agents in locally stable, low-coverage
+configurations, and that stochastic wind perturbation functions as an
+exploration-enhancing noise source rather than purely as a disturbance to be
+rejected. We report this protocol and its empirical characterization as an
+engineering specification, and explicitly identify the limits of what is
+and is not established by the present study: no formal convergence
+guarantee is provided for the discrete steering law, no baseline comparison
+against classical potential-field or frontier-exploration methods has yet
+been run under identical conditions, and no physical hardware validation
+has been performed.
 \end{abstract}
 
-% ── INTRODUCTION ──────────────────────────────────────────────────────────────
+\begin{IEEEkeywords}
+Swarm robotics, decentralized coordination, occupancy grid, map-aware
+repulsion, spatio-temporal efficiency, aerodynamic disturbance rejection,
+coverage path planning, multi-rotor systems.
+\end{IEEEkeywords}
+
 \section{Introduction}
 \label{sec:intro}
 
-\IEEEPARstart{A}{utonomous} spatial exploration and volumetric coverage utilizing decentralized multi-agent robotic swarms represent a critical capability across a diverse spectrum of modern technological domains. These applications include high-fidelity planetary surface mapping, disaster recovery search-and-rescue operations, atmospheric chemical plume tracking, and the structural inspection of complex industrial facilities \cite{latombe1991, brambilla2013review}. Coordinated control of such systems without relying on a centralized command infrastructure is a challenging problem in control theory and robotics. In the absence of a global coordinator, decentralized swarms must rely entirely on localized sensing, emergent behavioral rules, and distributed algorithms to achieve global mission objectives. A primary bottleneck in coordinating these systems without a centralized controller is the \textit{Redundant Search Problem}: the rapid decay in coverage efficiency that occurs as independent agents repeatedly re-traverse previously explored volumes. This inefficiency stems directly from a lack of shared spatial awareness and the absence of a unified coordinator to partition the workspace.
+Autonomous volumetric coverage using decentralized multi-agent robotic
+swarms is a capability of growing importance across planetary surface
+mapping, disaster search-and-rescue, atmospheric plume tracking, and
+industrial inspection \cite{latombe1991, brambilla2013review}. A recurring
+obstacle in decentralized coverage is the \textit{Redundant Search
+Problem}: absent shared spatial memory or a global coordinator, independent
+agents repeatedly re-traverse already-explored regions, degrading coverage
+efficiency as the mission progresses.
 
-To force agents to disperse and minimize overlapping search paths, classical decentralized swarm architectures often employ artificial potential fields (APF) \cite{saska2014cooperative}. Under these paradigms, agents generate virtual repulsive forces that push them away from nearby neighbors, driving the swarm to expand into the environment. However, when these standard APF models are deployed in bounded 3D workspaces containing complex, non-convex terrain profiles, they suffer from a severe and systemic failure mode defined as \textbf{Boundary Accumulation Divergence (BAD)} \cite{saska2014cooperative}. Because traditional potential fields project isotropic, radially symmetric forces, they inevitably drive agents outward toward the physical boundaries of the workspace. Once the agents reach these outer perimeters, the lack of spatial context and directional awareness causes them to crowd along the wall surfaces. This boundary crowding results in severe localized congestion, high-frequency kinetic oscillations, and complete coverage stagnation in the interior volumes of the environment. As the agent density $N$ scales, this crowding behavior becomes highly chaotic, triggering an efficiency inversion where larger swarms exhibit lower spatial coverage rates than smaller, less congested configurations.
+The Vel protocol family addresses this problem through a two-layer
+decentralized architecture: a Shared Spatial Memory (SSM) layer, in which
+every agent reads and writes to a common binary occupancy grid, and a
+Kinetic Vector Logic (KVL) layer, in which each agent's velocity is updated
+by a local steering law computed from that shared map. Vel-v4.3 introduced
+Map-Aware Gradient Repulsion (MAGR): rather than steering outward from the
+swarm's geometric center (a design that produces a documented
+\textit{boundary pile-up} failure mode as agent population scales), each
+agent scans a local neighborhood of the SSM and steers directly toward the
+nearest unexplored cell. Across 105{,}000 simulated trials, Vel-v4.3
+established $\mu=0.99$ and a population-dependent MAGR steering factor
+($G=1.5$ at $N=300$, $G=2.75$ at $N=150$) as empirical optima on a
+two-dimensional $50\times50$ grid.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/analysis_plots/dashboards/Aero_Performance_Dashboard.png}
-\caption{The 3D Voxel Flight Physics environment implemented in the vel-v5.5 simulation engine, demonstrating multi-agent coordinate-free navigation and trajectory traces over a non-convex elevation field $h(x,z)$.}
-\label{fig:flight_env}
-\end{figure}
+Vel-v5.5 extends this validated 2D algorithm into a three-dimensional voxel
+environment appropriate for aerial multi-rotor deployment, and asks a
+question Vel-v4.3 could not: how does the MAGR frontier-steering law behave
+under realistic aerodynamic disturbance? We add three physical elements
+absent from Vel-v4.3's abstract 2D grid: a constant gravitational drift
+term, a stochastic wind gust perturbation applied to agent velocity at each
+timestep, and elastic boundary collision physics in place of a simple
+positional clip. We then run a full factorial sweep of wind gust intensity
+and report the resulting efficiency characteristics.
 
-To resolve this fundamental limitation, this paper introduces the \textbf{vel-v5.5 protocol}. We reformulate the decentralized coverage problem as a continuous 3D aerodynamic flight coordination problem over a non-convex voxelized elevation field. Rather than treating agent dispersion and spatial mapping as decoupled systems, the vel-v5.5 protocol models the swarm and the surrounding environment as a coupled, continuous-time variational system. Each active agent serves as a moving sensor node that maps local voxels in real-time, while concurrently projecting a non-isotropic, map-aware gradient field that repels nearby neighbors. By utilizing a shared binary occupancy grid as an implicit coordination layer, the protocol eliminates the need for high-overhead, direct agent-to-agent communication, ensuring high fault tolerance and low network bandwidth requirements.
+This paper supersedes an earlier draft of Vel-v5.0 that formulated MAGR as
+a continuous potential field (agent repulsion, boundary distance gradient,
+and exploration attraction terms summed as a single steering force) and
+paired this formulation with a Lyapunov-based asymptotic convergence proof.
+That earlier draft's reference simulation implementation did not, in fact,
+apply the derived steering force to agent velocity at all -- an
+implementation/theory mismatch discovered during manuscript review. Rather
+than retrofit a proof to an untested formulation, Vel-v5.5 instead extends
+the simpler, already-validated Vel-v4.3 steering law into 3D and reports
+its behavior purely empirically. We regard this as the more defensible
+path: an engineering protocol whose claims are limited to what has actually
+been simulated and measured.
 
-The development of the vel-v5.5 protocol represents a significant evolution over previous iterations, transitioning from simple 2D cellular automaton rules to continuous-time, high-fidelity 3D flight physics. To rigorously validate the mathematical guarantees of the protocol, we developed a highly parallelized, multi-threaded simulation engine utilizing asynchronous Web Worker threads. Through this platform, we executed $10{,}000{,}000$ independent flight trials, systematically sweeping the multi-dimensional parameter space across agent population ($N$), repulsion factor ($G$), and momentum coefficient ($\mu$). The resulting empirical dataset confirms that Map-Aware Gradient Repulsion (MAGR) successfully eliminates Boundary Accumulation Divergence, restoring clean, monotonic population scaling even under high-intensity aerodynamic wind perturbations.
+The remainder of this paper is organized as follows. Section~\ref{sec:related}
+reviews related work. Section~\ref{sec:architecture} describes the Vel-v5.5
+system architecture. Section~\ref{sec:metrics} defines the performance
+metrics used throughout. Section~\ref{sec:study} describes the wind gust
+sweep methodology. Section~\ref{sec:results} reports and analyzes the
+empirical results. Section~\ref{sec:mvr} provides a strategic
+implementation protocol for physical deployment. Section~\ref{sec:limits}
+states the explicit limitations of the present study, and
+Section~\ref{sec:conclusion} concludes.
 
-The remainder of this paper is structured as follows. Section~\ref{sec:related} provides a comprehensive review of related literature in 3D volumetric coverage and swarm intelligence. Section~\ref{sec:formulation} details the system mathematical formulation, continuous-time flight kinematics, and the analytical derivation of the 3D MAGR forces. Section~\ref{sec:theory} presents the formal variational convergence and stochastic boundedness proofs. Section~\ref{sec:simulation} describes the architecture of our multi-threaded parallel execution engine. Section~\ref{sec:results} provides an exhaustive analysis of the empirical results from our 10-million trial campaign. Section~\ref{sec:mvr} outlines the Minimum Viable Requirements (MVR) for physical deployments, and Section~\ref{sec:conclusion} concludes the paper with a discussion of future research directions.
-
-% ── RELATED WORK ─────────────────────────────────────────────────────────────
 \section{Related Work}
 \label{sec:related}
 
-The design of decentralized coverage protocols sits at the intersection of several established fields in robotics, control theory, and swarm intelligence.
+\subsection{Coverage Path Planning}
+Coverage Path Planning (CPP) is the task of determining a path that passes
+over all points of an area or volume of interest while avoiding obstacles
+\cite{yamauchi1997}. A considerable body of research has addressed the CPP
+problem across domains including vacuum cleaning robots, autonomous
+underwater vehicles, demining robots, and aerial survey platforms. Classical
+CPP approaches such as boustrophedon decomposition partition the
+environment into cells and plan optimal traversal sequences for a single
+agent, but do not natively address the coordination challenges that arise
+when multiple agents must cover the same volume without collision or
+redundant re-traversal.
 
-\subsection{3D Volumetric Coverage Control}
-Extending traditional 2D coverage paradigms—such as Centroidal Voronoi Tessellations (CVT) and Lloyd's algorithm \cite{lloyd1982, cortes2004}—to 3D spatial volumes introduces extreme computational and geometric complexity. Computing 3D Voronoi polyhedrons in real-time requires continuous, high-precision positioning data of all neighboring agents. This, in turn, demands high-bandwidth communication links and substantial onboard processing power, which are often unavailable on resource-constrained micro-aerial vehicle (MAV) platforms. Furthermore, classical CVT formulations are inherently static and struggle to adapt to active, exploratory mapping scenarios where the spatial priority field dynamically evolves as regions are mapped. In contrast, the vel-v5.5 protocol achieves emergent volumetric coverage through localized, coordinate-blind gradient descent on a binary voxel grid, significantly reducing the onboard computational footprint and eliminating the need for continuous inter-agent communication.
+\subsection{Ant Colony Optimization}
+Ant Colony Optimization (ACO) models the pheromone-trail communication of
+biological ants to solve combinatorial optimization problems, and has been
+extensively applied to multi-robot path planning, where pheromone
+concentration guides agents toward unexplored regions \cite{dorigo2006ant}.
+The key limitation of ACO for coverage tasks is stagnation: once pheromone
+trails converge on a particular traversal pattern, agents are difficult to
+redirect toward remaining unexplored regions, and the approach requires
+careful tuning of pheromone decay parameters to remain adaptive. Vel
+differs from ACO in a fundamental architectural choice: rather than a
+continuous pheromone concentration field, Vel's SSM layer uses a binary
+occupancy grid in which cells are either explored or unexplored with no
+intermediate state. This eliminates the stagnation problem by construction
+-- a voxel is explored or it is not -- and removes the need for pheromone
+decay tuning entirely.
 
-\subsection{Frontier-Based 3D Exploration}
-Frontier-based exploration architectures identify the boundaries between mapped free space and unmapped space, directing agents to navigate toward these "frontiers" to expand the map \cite{yamauchi1997}. While highly efficient, classical 3D frontier detection is a centralized process that requires global map synchronization and complex path-planning algorithms (e.g., $A^*$ search or Fast Marching Methods) to compute collision-free trajectories to the frontiers. This centralized planning bottleneck scales poorly with the number of agents and is highly vulnerable to single-point-of-failure network drops. The vel-v5.5 protocol bridges this gap by achieving the target attraction of frontier-based schemes through a purely localized, reactive potential field, avoiding the need for global trajectory planning or explicit frontier tracking.
+\subsection{Particle Swarm Optimization}
+Particle Swarm Optimization (PSO) models the collective motion of flocking
+agents to optimize continuous objective functions, and has been adapted for
+multi-robot coverage tasks in which agents are attracted toward unexplored
+regions by a shared global-best position \cite{banks2007}. PSO-based
+coverage systems are vulnerable to premature convergence: once the global
+best position is identified, all agents converge toward it rather than
+distributing across the remaining unexplored volume. Vel's KVL layer draws
+conceptual inspiration from PSO's velocity update rule -- specifically the
+momentum term $\mu$ that damps high-frequency direction changes -- but
+replaces PSO's global attractor with a map-aware local gradient, avoiding
+premature convergence by ensuring each agent steers toward the nearest
+locally unexplored voxel rather than a globally shared target.
 
-\subsection{Decentralized Self-Organizing Swarms}
-Robotics researchers have demonstrated that decentralized self-organizing swarms can achieve competitive coverage metrics while maintaining high fault tolerance \cite{brambilla2013review}. To operate without GPS or global coordinate systems, these swarms often use local potential field methods to guide agent dispersion. However, as documented by Saska et al. \cite{saska2014cooperative}, potential-field-based swarms suffer from severe spatial instabilities when navigating near physical boundaries or non-convex obstacles. The MAGR architecture presented in this paper explicitly addresses these boundary instabilities by modeling the physical perimeters as a localized, non-convex distance field gradient, ensuring that the repulsive force vector actively redirects agents into open, unexplored spaces rather than trapping them against walls.
+\subsection{Centroidal Voronoi Tessellation and Lloyd's Algorithm}
+Centroidal Voronoi Tessellations (CVT), computed via Lloyd's algorithm
+\cite{lloyd1982}, partition a coverage domain into cells such that each
+agent is responsible for the region closest to it, and have been formally
+extended to mobile sensing network coverage control \cite{cortes2004}.
+Extending CVT-based coverage from 2D to 3D volumes introduces substantial
+computational and geometric complexity: computing 3D Voronoi polyhedra in
+real time requires continuous, high-precision positioning data from every
+neighboring agent, demanding communication bandwidth and onboard processing
+power that are often unavailable on resource-constrained micro-aerial
+vehicle (MAV) platforms. Furthermore, classical CVT formulations are
+static and do not naturally adapt to an actively evolving spatial priority
+field as regions are progressively mapped. Vel-v5.5 achieves emergent
+volumetric coverage through localized, coordinate-blind gradient descent
+on a binary voxel grid, avoiding both the communication overhead and the
+static-partition limitation of CVT-based approaches.
 
-\subsection{High-Throughput Parallel Simulation in Robotics}
-The validation of decentralized swarm protocols is often limited by the computational scale of the simulation environments. Many studies in the literature rely on small sample sizes (typically 10 to 50 trials) to draw conclusions about swarm stability and efficiency. Such limited datasets are highly susceptible to statistical anomalies and fail to fully capture the chaotic phase transitions that occur in high-density multi-agent systems. Our work addresses this limitation by proposing an asynchronous, multi-threaded parallel simulation framework. By leveraging multi-core parallelization, we execute $10{,}000{,}000$ independent trials, establishing an unprecedented level of statistical rigor and enabling the precise mapping of the swarm's multi-dimensional parameter phase space.
+\subsection{Frontier-Based Exploration}
+Frontier-based exploration architectures identify the boundary between
+mapped free space and unmapped space, directing agents toward these
+``frontiers'' to expand the map \cite{yamauchi1997}. Classical frontier
+detection in 3D is typically a centralized process requiring global map
+synchronization and path-planning algorithms such as $A^*$ search or Fast
+Marching Methods to compute collision-free trajectories to identified
+frontiers -- a bottleneck that scales poorly with agent count and is
+vulnerable to single-point-of-failure network drops. Vel's MAGR steering
+law achieves the target-attraction behavior of frontier-based schemes
+through a purely localized, reactive scan-and-steer computation, avoiding
+the need for global trajectory planning or explicit frontier tracking.
 
-% ── SYSTEM MATHEMATICAL FORMULATION ──────────────────────────────────────────
-\section{System Mathematical Formulation}
-\label{sec:formulation}
+\subsection{Decentralized Multi-Robot Coverage}
+Decentralized multi-robot coverage architectures achieve competitive
+coverage efficiency while eliminating the single point of failure inherent
+to centralized command structures \cite{brambilla2013review}.
+Potential-field-based decentralized swarms, however, are documented to
+suffer severe spatial instabilities when navigating near physical
+boundaries or non-convex obstacles \cite{saska2014cooperative}. Vel-v4.3's
+introduction of MAGR directly addressed an analogous instability (boundary
+pile-up under center-outward repulsion) in a 2D setting by modeling the
+physical perimeter through local map awareness rather than global geometric
+bearing. The present study evaluates whether this same architectural
+solution remains effective when the steering law is extended into three
+dimensions and subjected to physical aerodynamic disturbance.
 
-This section details the continuous-time mathematical formulation of the 3D voxel environment, the second-order flight kinematics of the agents, and the analytical derivation of the Map-Aware Gradient Repulsion forces.
+\subsection{Occupancy Grid Representations}
+The occupancy grid representation underlying Vel's SSM layer originates in
+probabilistic mobile robot perception and mapping research, where
+individual cells encode the probability of physical occupancy under sensor
+uncertainty. Vel simplifies this representation to a deterministic binary
+state (explored/unexplored), appropriate for a coverage task in which the
+quantity of interest is certainty of prior visitation rather than
+probability of physical occupancy.
 
-\subsection{3D Voxel Space Representation}
-Let the operational 3D environment be modeled as a compact, bounded domain $\Omega \subset \mathbb{R}^3$ with a Lipschitz-continuous boundary $\partial\Omega$. The workspace is discretized into a 3D voxel grid $\mathcal{V}$ of dimensions $W \times H \times D$, containing exactly $32{,}768$ discrete coordinate cells ($32 \times 32 \times 32$). The elevation profile of the environment features non-convex terrain variations modeled by a continuous, periodic height-field function:
-\begin{equation}
-    h(x, z) = 4\sin(0.2x) + 3\cos(0.3z) + 8
-    \label{eq:heightmap}
-\end{equation}
-Every discrete voxel index $(x, y, z) \in \mathcal{V}$ where the height $y < h(x, z)$ represents a solid physical boundary obstacle. Each cell $c(x,y,z) \in \mathcal{V}$ represents a binary state variable:
-\begin{equation}
-    c(x, y, z) = \begin{cases} 
-    0 & \text{if Unexplored Voxel} \\ 
-    1 & \text{if Explored Voxel} 
-    \end{cases}
-    \label{eq:voxel_state}
-\end{equation}
+\subsection{Positioning of Vel-v5.5}
+Vel-v5.5 occupies a distinct position in the swarm coverage landscape.
+Unlike ACO, it uses deterministic binary memory rather than probabilistic
+pheromone concentration. Unlike PSO, it uses local map-aware gradient
+descent rather than global positional attraction. Unlike CVT-based
+methods, it requires no continuous inter-agent positioning communication
+and adapts naturally as the occupancy field evolves. Unlike classical
+frontier-exploration CPP methods, it is fully decentralized with no
+pre-planned or centrally computed traversal sequence. The present
+contribution is the extension of this already-validated 2D steering law
+into a three-dimensional voxel environment and its systematic
+characterization under stochastic aerodynamic disturbance -- a condition
+not modeled in any of the coverage architectures reviewed above.
 
-The continuous spatial state of exploration at any coordinate $\mathbf{x} \in \Omega$ and time $t \geq 0$ is represented by a continuous scalar field $I(\mathbf{x}, t) \in [0, 1]$. The local scanning action of agent $i$ located at position $\mathbf{p}_i(t) \in \Omega$ is modeled as a localized, continuous spatial sensing kernel $\kappa(\mathbf{x} - \mathbf{p}_i(t))$ with compact support on the closed ball of radius $r$, defined as $B_r(\mathbf{p}_i(t)) = \{\mathbf{x} \in \Omega \mid \norm{\mathbf{x} - \mathbf{p}_i(t)} \leq r\}$. The evolution of the global spatial information field $I(\mathbf{x}, t)$ is governed by the following partial differential equation (PDE):
-\begin{equation}
-    \frac{\partial I(\mathbf{x}, t)}{\partial t} = \left( \sum_{i=1}^N \kappa(\mathbf{x} - \mathbf{p}_i(t)) \right) (1 - I(\mathbf{x}, t))
-    \label{eq:pde_field}
-\end{equation}
-subject to the initial conditions $I(\mathbf{x}, 0) = 0$ almost everywhere in $\Omega$, representing a completely unmapped environment at the start of the mission.
+\section{System Architecture}
+\label{sec:architecture}
 
-\subsection{3D Aerodynamic Flight Kinematics}
-Each agent $i \in \{1, \dots, N\}$ moves through the continuous 3D voxel space according to second-order point-mass flight kinematics. Let $\mathbf{p}_i(t) = [p_{x,i}(t), p_{y,i}(t), p_{z,i}(t)]^\top \in \mathbb{R}^3$ be the continuous spatial position of agent $i$ at time step $t$, and $\mathbf{v}_i(t) = [v_{x,i}(t), v_{y,i}(t), v_{z,i}(t)]^\top \in \mathbb{R}^3$ be its velocity vector.
+Vel-v5.5 retains Vel-v4.3's two-layer architecture.
 
-At each simulation step, the state equations update according to the following discrete-time transition rules:
-\begin{align}
-    \mathbf{p}_i(t+1) &= \mathbf{p}_i(t) + \mathbf{v}_i(t) \label{eq:pos_update} \\
-    \mathbf{v}_i(t+1) &= \mu \mathbf{v}_i(t) + \mathbf{a}_{\text{steering}}(t) - \mathbf{g}_{\text{drift}} + \mathbf{w}_{\text{gust}}(t) \label{eq:vel_update}
-\end{align}
-where:
-\begin{itemize}
-    \item $\mu \in [0, 1)$ is the momentum conservation coefficient representing aerodynamic drag and flight-controller dampening.
-    \item $\mathbf{g}_{\text{drift}} = [0, g_{\text{aero}}, 0]^\top$ represents a constant downward gravitational drift vector, where $g_{\text{aero}} = 0.082$.
-    \item $\mathbf{w}_{\text{gust}}(t) = [w_{x,i}(t), w_{y,i}(t), w_{z,i}(t)]^\top$ is a stochastic wind gust vector modeling physical turbulence.
-\end{itemize}
-
-\subsection{Stochastic Wind Gust Perturbations}
-To model realistic atmospheric turbulence and assess the robustness of our control law, we subject the agents to continuous, high-intensity stochastic wind gust perturbations. The wind gust vector $\mathbf{w}_{\text{gust}}(t)$ is modeled as a zero-mean white noise process scaled by the Gust Intensity parameter ($G$):
-\begin{equation}
-    \mathbb{E}[\mathbf{w}_{\text{gust}}(t)] = \mathbf{0}, \quad \text{Cov}(\mathbf{w}_{\text{gust}}(t)) = \frac{G^2}{12} \mathbf{I}_3
-    \label{eq:stochastic_wind}
-\end{equation}
-where $\mathbf{I}_3$ represents the $3 \times 3$ identity matrix, and individual coordinates are drawn from independent uniform distributions:
-\begin{equation}
-    w_{j,i}(t) \sim \mathcal{U}(-0.5, 0.5) \cdot G, \quad \forall j \in \{x, y, z\}
-    \label{eq:gust_noise}
-\end{equation}
-
-This stochastic perturbation model acts as a continuous disturbance on the velocity transition of the agents, simulating the physical wind gusts that a micro-aerial vehicle would encounter during real-world outdoor operations.
-
-\subsection{Analytical Formulation of 3D MAGR Forces}
-The composite steering acceleration $\mathbf{a}_{\text{steering}}(t) \in \mathbb{R}^3$ acting on agent $i$ is formulated as the negative gradient of a composite potential field $U(\mathbf{p}, t)$:
-\begin{equation}
-    \mathbf{a}_{\text{steering}}(t) = -\nabla_{\mathbf{p}} U(\mathbf{p}_i(t), t)
-\end{equation}
-where the global potential field is the sum of agent-to-agent repulsion ($U_{\text{agent}}$), boundary distance fields ($U_{\text{bound}}$), and unexplored spatial attraction ($U_{\text{expl}}$):
-\begin{equation}
-    U(\mathbf{p}, t) = U_{\text{agent}}(\mathbf{p}) + U_{\text{bound}}(\mathbf{p}) + U_{\text{expl}}(\mathbf{p}, t)
-\end{equation}
-
-The exact partial derivatives for each potential field are derived as follows:
-\subsubsection{1) 3D Agent Repulsion Gradient}
-The agent-to-agent potential field is designed to prevent collisions and ensure even spatial dispersion across the workspace. We formulate this potential as:
-\begin{equation}
-    U_{\text{agent}}(\mathbf{p}_i) = G \sum_{j \neq i} \psi(\norm{\mathbf{p}_i - \mathbf{p}_j})
-\end{equation}
-where $\psi(d) = \frac{1}{d^2}$ is the repulsive potential function. Taking the gradient with respect to the agent's position $\mathbf{p}_i$ yields:
-\begin{equation}
-    -\nabla_{\mathbf{p}} U_{\text{agent}}(\mathbf{p}_i) = 2 G \sum_{j \in \mathcal{N}_i} \frac{\mathbf{p}_i - \mathbf{p}_j}{\norm{\mathbf{p}_i - \mathbf{p}_j}^4}
-\end{equation}
-where $\mathcal{N}_i = \{j \neq i \mid \norm{\mathbf{p}_i - \mathbf{p}_j} \leq r\}$ represents the localized neighborhood set within the scan radius $r$.
-
-\subsubsection{2) Non-Convex Boundary Distance Field Gradient}
-To actively prevent Boundary Accumulation Divergence, we construct a boundary distance field potential that increases rapidly as agents approach physical walls or obstacles:
-\begin{equation}
-    U_{\text{bound}}(\mathbf{p}_i) = \frac{\gamma}{\text{dist}(\mathbf{p}_i, \partial\Omega)^2}
-\end{equation}
-where $\gamma > 0$ is the boundary scaling coefficient and $\text{dist}(\mathbf{p}_i, \partial\Omega)$ represents the Euclidean distance to the nearest boundary. The gradient of this potential field is derived as:
-\begin{equation}
-    -\nabla_{\mathbf{p}} U_{\text{bound}}(\mathbf{p}_i) = \frac{2\gamma}{\text{dist}(\mathbf{p}_i, \partial\Omega)^3} \nabla_{\mathbf{p}} \text{dist}(\mathbf{p}_i, \partial\Omega)
-\end{equation}
-Let $\text{proj}_{\partial\Omega}(\mathbf{p}_i)$ be the projection of the agent's current position onto the non-convex obstacle boundary $\partial\Omega$. The distance gradient simplifies to:
-\begin{equation}
-    \nabla_{\mathbf{p}} \text{dist}(\mathbf{p}_i, \partial\Omega) = \frac{\mathbf{p}_i - \text{proj}_{\partial\Omega}(\mathbf{p}_i)}{\norm{\mathbf{p}_i - \text{proj}_{\partial\Omega}(\mathbf{p}_i)}}
-\end{equation}
-This unit vector points directly inward from the nearest boundary point, providing a mathematically robust steering force that actively pushes agents away from physical walls.
-
-\subsubsection{3) Spatial Exploration Attraction Gradient}
-To drive the active exploration of unmapped regions, agents are attracted to local volumes where the information field $I(\mathbf{x}, t)$ is near zero. We formulate this attraction potential over the local neighborhood $B_r(\mathbf{p}_i)$ as:
-\begin{equation}
-    U_{\text{expl}}(\mathbf{p}_i, t) = -\alpha \int_{B_r(\mathbf{p}_i)} (1 - I(\mathbf{x}, t)) \psi(\norm{\mathbf{p}_i - \mathbf{x}}) d\mathbf{x}
-\end{equation}
-where $\alpha > 0$ is the attraction coefficient. Taking the gradient with respect to $\mathbf{p}_i$ yields:
-\begin{equation}
-    -\nabla_{\mathbf{p}} U_{\text{expl}}(\mathbf{p}_i, t) = 2 \alpha \int_{B_r(\mathbf{p}_i)} (1 - I(\mathbf{x}, t)) \frac{\mathbf{x} - \mathbf{p}_i}{\norm{\mathbf{x} - \mathbf{p}_i}^4} d\mathbf{x}
-\end{equation}
-This attraction force acts as a reactive frontier-tracking mechanism, steering agents away from saturated volumes and pulling them toward local clusters of unexplored voxels.
-
-\subsection{Elastic Boundary Reflection Mechanics}
-To prevent agents from exiting the operational boundaries of the $32 \times 32 \times 32$ voxel grid, we implement elastic boundary collision physics. When an agent's predicted coordinate exceeds the grid boundaries $[0, 31]^3$, its position is capped and its corresponding velocity vector undergoes an elastic reflection governed by a restitution coefficient $\epsilon$:
-\begin{equation}
-    v_{j,i}(t+1) \leftarrow \epsilon \cdot v_{j,i}(t+1), \quad \text{for } j \in \{x, y, z\}
-    \label{eq:restitution}
-\end{equation}
-where the restitution coefficient is set to a constant $\epsilon = -0.45$, simulating significant kinetic energy dissipation upon obstacle impact.
-
-% ── THEORETICAL CONVERGENCE & BOUNDEDNESS ANALYSIS ────────────────────────────
-\section{Theoretical Convergence \& Boundedness Analysis}
-\label{sec:theory}
-
-To establish rigorous mathematical guarantees for the vel-v5.5 protocol, we present formal stability and boundedness theorems governing the coupled agent-field dynamical system.
-
-\subsection{Proof of Theorem 1: Asymptotic Volume Coverage}
-\begin{theorem}[Asymptotic Volume Coverage]
-Let the environment $\Omega \subset \mathbb{R}^3$ be a compact, bounded domain with a Lipschitz-continuous boundary $\partial\Omega$. Under the Map-Aware Gradient Repulsion steering forces $\mathbf{a}_{\text{steering}}(t)$, the multi-agent system asymptotically converges to the complete coverage state:
-\begin{equation}
-    \lim_{t \to \infty} I(\mathbf{x}, t) = 1 \quad \text{almost everywhere in } \Omega
-\end{equation}
-\end{theorem}
-
-\begin{proof}
-We construct a continuous-time candidate Lyapunov-like energy functional $V(t) \geq 0$ containing the spatial unmapped information state and total kinetic energy of the swarm:
-\begin{equation}
-    V(t) = \frac{1}{2} \int_{\Omega} (1 - I(\mathbf{x}, t))^2 d\mathbf{x} + \frac{1}{2\alpha} \sum_{i=1}^N \norm{\mathbf{v}_i(t)}^2
-\end{equation}
-Clearly, $V(t) \geq 0$, and $V(t) = 0$ if and only if $I(\mathbf{x}, t) = 1$ almost everywhere in $\Omega$ and all agent velocities $\mathbf{v}_i(t) = \mathbf{0}$.
-
-Taking the continuous-time derivative of the Lyapunov functional $V(t)$ yields:
-\begin{equation}
-    \dot{V}(t) = -\int_{\Omega} (1 - I(\mathbf{x}, t)) \frac{\partial I(\mathbf{x}, t)}{\partial t} d\mathbf{x} + \frac{1}{\alpha} \sum_{i=1}^N \mathbf{v}_i(t)^\top \dot{\mathbf{v}}_i(t)
-\end{equation}
-We now substitute the continuous-time field evolution equation (\ref{eq:pde_field}) into the first term of the derivative:
-\begin{align}
-    -\int_{\Omega} (1 - I) \frac{\partial I}{\partial t} d\mathbf{x} &= -\int_{\Omega} (1 - I) \left( \sum_{i=1}^N \kappa(\mathbf{x} - \mathbf{p}_i) \right) (1 - I) d\mathbf{x} \nonumber \\
-    &= -\int_{\Omega} \left( \sum_{i=1}^N \kappa(\mathbf{x} - \mathbf{p}_i) \right) (1 - I(\mathbf{x}, t))^2 d\mathbf{x}
-\end{align}
-Next, we analyze the second term of the Lyapunov derivative, which represents the rate of change of the kinetic energy of the agents. We substitute the continuous-time acceleration dynamics of the agents under nominal zero-disturbance conditions ($\mathbf{w}_{\text{gust}}(t) = \mathbf{0}$, $\mathbf{g}_{\text{drift}} = \mathbf{0}$):
-\begin{equation}
-    \dot{\mathbf{v}}_i(t) = -(1 - \mu) \mathbf{v}_i(t) - \alpha \nabla_{\mathbf{p}} U_{\text{expl}}(\mathbf{p}_i(t), t)
-\end{equation}
-This yields:
-\begin{align}
-    \frac{1}{\alpha} \sum_{i=1}^N \mathbf{v}_i(t)^\top \dot{\mathbf{v}}_i(t) = &-\frac{1-\mu}{\alpha} \sum_{i=1}^N \norm{\mathbf{v}_i(t)}^2 \nonumber \\
-    &- \sum_{i=1}^N \mathbf{v}_i(t)^\top \nabla_{\mathbf{p}} U_{\text{expl}}(\mathbf{p}_i(t), t)
-\end{align}
-By coupling the agent's velocity vector directly to the gradient of the unexplored attraction potential, the physical steering forces cancel out the spatial gradient terms of the Lyapunov derivative. Combining these components yields:
-\begin{align}
-    \dot{V}(t) = &-\int_{\Omega} \left(\sum_{i=1}^N \kappa(\mathbf{x} - \mathbf{p}_i)\right) (1 - I(\mathbf{x}, t))^2 d\mathbf{x} \nonumber \\
-    &-\frac{1-\mu}{\alpha} \sum_{i=1}^N \norm{\mathbf{v}_i(t)}^2
-\end{align}
-Because the spatial sensing kernel $\kappa(\mathbf{z}) \geq 0$ and the momentum term $(1-\mu) > 0$, we have:
-\begin{equation}
-    \dot{V}(t) \leq 0
-\end{equation}
-This proves that $V(t)$ is a monotonically non-increasing functional.
-
-To prove asymptotic convergence, we define the invariant set $\mathcal{S} = \{(I, \mathbf{v}) \mid \dot{V}(t) = 0\}$. This condition requires:
-\begin{equation}
-    \mathbf{v}_i(t) = \mathbf{0} \quad \forall i \in \{1, \dots, N\}
-\end{equation}
-Under LaSalle's Invariance Principle, the system trajectories are guaranteed to converge asymptotically to the largest invariant set contained within $\mathcal{S}$. In this set, agent velocities are zero, and spatial variations in information are fully minimized. Since any remaining unmapped volumes ($I(\mathbf{x}, t) < 1$) exert a non-zero attraction gradient $\nabla_{\mathbf{p}} U_{\text{expl}}(\mathbf{p}_i) \neq \mathbf{0}$ that destabilizes stationary agents, the only stable invariant equilibrium state is $I(\mathbf{x}, t) = 1$ almost everywhere across $\Omega$, completing the proof.
-\end{proof}
-
-\begin{remark}
-Theorem~1 establishes asymptotic coverage under the nominal, disturbance-free dynamics used in the proof ($\mathbf{w}_{\text{gust}}(t) = \mathbf{0}$, $\mathbf{g}_{\text{drift}} = \mathbf{0}$). The empirical campaign in Section~\ref{sec:results} instead operates under nonzero wind gust intensity $G > 0$ and nonzero gravitational drift, conditions outside the formal scope of this proof. We do not claim that Theorem~1 extends analytically to the stochastic case; Theorem~2 separately bounds the expected kinetic energy of agents under gust perturbation, but it does not establish coverage completeness. The empirical results in Section~\ref{sec:results} should therefore be read as evidence of practical stability and bounded efficiency under disturbance, rather than as direct empirical confirmation of Theorem~1's asymptotic coverage guarantee. Closing this analytical gap -- extending the Lyapunov argument to the perturbed system, e.g. via a stochastic LaSalle-type invariance result -- is left to future work.
-\end{remark}
-
-\subsection{Proof of Theorem 2: Stochastic Velocity Boundedness}
-\begin{theorem}[Stochastic Velocity Boundedness]
-Under stochastic wind gust perturbations $\mathbf{w}_{\text{gust}}(t)$ parameterized by intensity $G$, the expected kinetic energy of each flight agent remains bounded for all $t \geq 0$:
-\begin{equation}
-    \limsup_{t \to \infty} \mathbb{E}\left[\norm{\mathbf{v}_i(t)}^2\right] \leq \frac{G^2}{4(1 - \mu^2)} + C(U_{\max})
-\end{equation}
-\end{theorem}
-
-\begin{proof}
-Let the discrete velocity transition equation under nominal damping be expressed as:
-\begin{equation}
-    \mathbf{v}_i(t+1) = \mu \mathbf{v}_i(t) + \mathbf{w}_{\text{gust}}(t) + \mathbf{u}_i(t)
-\end{equation}
-where $\mathbf{u}_i(t) = \mathbf{a}_{\text{steering}}(t) - \mathbf{g}_{\text{drift}}$ represents the combined control and gravitational drift vectors. We assume that the steering acceleration is bounded by the physical limits of the actuators, such that $\norm{\mathbf{u}_i(t)} \leq U_{\max}$ for all $t \geq 0$.
-
-Taking the Euclidean norm squared on both sides of the transition equation yields:
-\begin{align}
-    \norm{\mathbf{v}_i(t+1)}^2 = &\norm{\mu \mathbf{v}_i(t) + \mathbf{w}_{\text{gust}}(t) + \mathbf{u}_i(t)}^2 \nonumber \\
-    = &\mu^2 \norm{\mathbf{v}_i(t)}^2 + \norm{\mathbf{w}_{\text{gust}}(t)}^2 + \norm{\mathbf{u}_i(t)}^2 \nonumber \\
-    &+ 2\mu \mathbf{v}_i(t)^\top \mathbf{w}_{\text{gust}}(t) + 2\mu \mathbf{v}_i(t)^\top \mathbf{u}_i(t) \nonumber \\
-    &+ 2 \mathbf{w}_{\text{gust}}(t)^\top \mathbf{u}_i(t)
-\end{align}
-We now apply the mathematical expectation operator $\mathbb{E}[\cdot]$ on both sides. Since the stochastic wind gust vector $\mathbf{w}_{\text{gust}}(t)$ is a zero-mean white noise process and is statistically independent of the current agent state $\mathbf{v}_i(t)$ and the control vector $\mathbf{u}_i(t)$, we have:
-\begin{align}
-    \mathbb{E}\left[\mathbf{v}_i(t)^\top \mathbf{w}_{\text{gust}}(t)\right] &= \mathbb{E}\left[\mathbf{v}_i(t)^\top\right] \mathbb{E}\left[\mathbf{w}_{\text{gust}}(t)\right] = 0 \\
-    \mathbb{E}\left[\mathbf{w}_{\text{gust}}(t)^\top \mathbf{u}_i(t)\right] &= \mathbb{E}\left[\mathbf{w}_{\text{gust}}(t)^\top\right] \mathbb{E}\left[\mathbf{u}_i(t)\right] = 0
-\end{align}
-Furthermore, the expectation of the squared norm of the wind gust vector is derived from its covariance matrix:
-\begin{equation}
-    \mathbb{E}\left[\norm{\mathbf{w}_{\text{gust}}(t)}^2\right] = \text{Tr}\left(\text{Cov}(\mathbf{w}_{\text{gust}}(t))\right) = \text{Tr}\left(\frac{G^2}{12} \mathbf{I}_3\right) = \frac{G^2}{4}
-\end{equation}
-Substituting these terms back into the expectation equation yields:
-\begin{align}
-    \mathbb{E}\left[\norm{\mathbf{v}_i(t+1)}^2\right] = &\mu^2 \mathbb{E}\left[\norm{\mathbf{v}_i(t)}^2\right] + \frac{G^2}{4} + \mathbb{E}\left[\norm{\mathbf{u}_i(t)}^2\right] \nonumber \\
-    &+ 2\mu \mathbb{E}\left[\mathbf{v}_i(t)^\top \mathbf{u}_i(t)\right]
-\end{align}
-We apply the Cauchy-Schwarz inequality to the cross-term:
-\begin{equation}
-    2\mu \mathbf{v}_i(t)^\top \mathbf{u}_i(t) \leq 2\mu \norm{\mathbf{v}_i(t)} \norm{\mathbf{u}_i(t)} \leq 2\mu U_{\max} \norm{\mathbf{v}_i(t)}
-\end{equation}
-Using Young's inequality ($2ab \leq \gamma a^2 + \frac{1}{\gamma} b^2$ for any $\gamma > 0$), we let $\gamma = 1 - \mu^2$:
-\begin{equation}
-    2\mu U_{\max} \norm{\mathbf{v}_i(t)} \leq (1 - \mu^2) \norm{\mathbf{v}_i(t)}^2 + \frac{\mu^2 U_{\max}^2}{1 - \mu^2}
-\end{equation}
-Substituting this bound back into the expectation inequality:
-\begin{align}
-    \mathbb{E}\left[\norm{\mathbf{v}_i(t+1)}^2\right] \leq &\mu^2 \mathbb{E}\left[\norm{\mathbf{v}_i(t)}^2\right] + (1 - \mu^2)\mathbb{E}\left[\norm{\mathbf{v}_i(t)}^2\right] \nonumber \\
-    &+ \frac{G^2}{4} + U_{\max}^2 + \frac{\mu^2 U_{\max}^2}{1 - \mu^2} \nonumber \\
-    = &\mathbb{E}\left[\norm{\mathbf{v}_i(t)}^2\right] + \frac{G^2}{4} + \frac{U_{\max}^2}{1 - \mu^2}
-\end{align}
-This recursive inequality converges to a stable geometric series, proving that the expected kinetic velocity of the agents remains bounded under continuous stochastic perturbations.
-\end{proof}
-
-% ── MULTI-THREADED SIMULATION DESIGN ──────────────────────────────────────────
-\section{Multi-Threaded Parallel Execution Engine}
-\label{sec:simulation}
-
-To execute a massive $10{,}000{,}000$ trial hyper-parameter sweep without encountering main-thread execution stalls, we designed a parallel computing framework in JavaScript utilizing Web Worker threads.
-
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\fbox{\parbox{0.9\columnwidth}{\centering
-\bfseries Multi-Threaded Worker Pool Architecture \\
-\vspace{0.2cm}
-$\downarrow$ Chunks distributed asynchronously to $C$ CPU cores \\
-\fbox{Worker 1 (RNG)} \quad \fbox{Worker 2 (RNG)} \quad \fbox{Worker 3 (RNG)} \\
-\vspace{0.2cm}
-$\downarrow$ Shared Memory / Message Aggregation \\
-\fbox{Global Metrics Dashboard ($10{,}000{,}000$ Trials)}
+\fbox{\parbox{0.92\columnwidth}{\centering
+\textbf{Vel-v5.5 Two-Layer Architecture} \\[0.3cm]
+\fbox{\parbox{0.85\columnwidth}{\centering \textbf{Shared Spatial Memory (SSM)} \\ $32\times32\times32$ binary voxel occupancy grid \\ read/write by all agents every timestep}} \\[0.2cm]
+$\updownarrow$ \\[0.2cm]
+\fbox{\parbox{0.85\columnwidth}{\centering \textbf{Kinetic Vector Logic (KVL)} \\ Moore-neighborhood scan $\rightarrow$ MAGR steering \\ $+$ momentum $+$ gravity drift $+$ wind gust \\ $+$ elastic boundary collision}} \\[0.2cm]
+$\downarrow$ \\[0.2cm]
+\fbox{\parbox{0.6\columnwidth}{\centering Agent position \& velocity update}}
 }}
-\caption{The parallel Web Worker thread pipeline used to run the high-velocity flight sweeps.}
-\label{fig:multithread}
+\caption{Two-layer Vel-v5.5 architecture. Every agent reads the shared SSM
+to locate its steering target, then updates its own velocity through the
+KVL layer independently -- no direct agent-to-agent communication channel
+is required.}
+\label{fig:architecture}
 \end{figure}
 
-To bypass standard thread-blocking issues, we use high-speed custom pseudorandom number generators (RNG) inside each independent worker thread. We use a 32-bit Xorshift state-rotation algorithm to generate high-quality random values at a rapid rate:
-\begin{align}
-    x &\leftarrow x \oplus (x \ll 13) \nonumber \\
-    x &\leftarrow x \oplus (x \gg 17) \label{eq:xorshift} \\
-    x &\leftarrow x \oplus (x \ll 5) \nonumber
-\end{align}
-This mathematical sequence generates values across the interval $[0, 1)$ without memory leaks, allowing the worker threads to process up to $150{,}000$ flight steps per second per core.
+Fig.~\ref{fig:architecture} summarizes the flow of information between the
+two layers, described in detail below.
 
-\begin{algorithm}[H]
-\caption{vel-v5.5 Volumetric Coverage Loop}
-\label{alg:simulation_loop}
+\subsection{Shared Spatial Memory (SSM)}
+The operational volume is discretized into a voxel grid $\mathcal{V}$ of
+dimensions $32\times32\times32$ (32{,}768 voxels). Each voxel
+$c(x,y,z)\in\mathcal{V}$ is a binary state variable:
+\begin{equation}
+c(x,y,z) = \begin{cases} 0 & \text{Unexplored} \\ 1 & \text{Explored} \end{cases}
+\end{equation}
+Every agent reads and writes the same SSM, providing implicit coordination
+without direct agent-to-agent communication.
+
+\subsection{Kinetic Vector Logic (KVL) and MAGR Steering}
+At each timestep, agent $i$ at position $\mathbf{p}_i(t)\in\mathbb{R}^3$
+first marks its current voxel explored, then scans the Moore neighborhood
+of radius $r$ around that voxel for the nearest unexplored voxel. If one is
+found at relative offset $(dx^*,dy^*,dz^*)$, the agent's steering
+acceleration is:
+\begin{equation}
+\vec{R}_G = G \cdot \frac{(dx^*,dy^*,dz^*)}{\norm{(dx^*,dy^*,dz^*)}} \cdot k
+\label{eq:magr_found}
+\end{equation}
+where $G\in\mathbb{R}^+$ is the tunable steering factor and $k=0.12$ is the
+fixed scale constant carried over from Vel-v4.3. If no unexplored voxel is
+found within radius $r$, the agent falls back to steering directly away
+from the swarm's instantaneous geometric center $\bar{\mathbf{p}}(t)$:
+\begin{equation}
+\vec{R}_G = G \cdot \frac{\mathbf{p}_i(t) - \bar{\mathbf{p}}(t)}{\norm{\mathbf{p}_i(t) - \bar{\mathbf{p}}(t)}} \cdot k
+\label{eq:magr_fallback}
+\end{equation}
+
+The full velocity update integrates this steering term with momentum,
+gravitational drift, and stochastic wind gust perturbation:
+\begin{equation}
+\mathbf{v}_i(t+1) = \mu\,\mathbf{v}_i(t) + \vec{R}_G - \mathbf{g}_{\text{drift}} + \mathbf{w}_{\text{gust}}(t)
+\label{eq:vel_update}
+\end{equation}
+\begin{equation}
+\mathbf{p}_i(t+1) = \mathbf{p}_i(t) + \mathbf{v}_i(t+1)
+\end{equation}
+where $\mu\in[0,1)$ is the momentum coefficient, $\mathbf{g}_{\text{drift}} =
+[0, g_{\text{aero}}, 0]^\top$ is a constant downward gravitational drift
+($g_{\text{aero}}=0.082$), and $\mathbf{w}_{\text{gust}}(t)$ is a stochastic
+wind gust vector with independent components:
+\begin{equation}
+w_{j,i}(t) \sim \mathcal{U}(-0.5, 0.5) \cdot G_{\text{wind}}, \quad \forall j\in\{x,y,z\}
+\label{eq:gust}
+\end{equation}
+parameterized by gust intensity $G_{\text{wind}}$. Note that
+$G_{\text{wind}}$ (wind gust intensity) and $G$ (MAGR steering factor, Eq.
+\ref{eq:magr_found}) are distinct quantities and are varied independently
+in this study; $G$ is held fixed at the Vel-v4.3 empirical optimum
+throughout, while $G_{\text{wind}}$ is the swept experimental variable.
+
+\subsection{Computational Complexity of 3D Neighborhood Scanning}
+Extending MAGR's local neighborhood scan from a 2D Moore neighborhood to a
+3D Moore neighborhood changes its computational cost scaling. In Vel-v4.3's
+2D formulation, scanning a neighborhood of radius $r$ requires
+$(2r+1)^2$ SSM reads per agent per timestep. In the 3D voxel formulation
+used here, the equivalent scan requires $(2r+1)^3$ reads per agent per
+timestep -- a cubic rather than quadratic growth in $r$. At the scan
+radius used throughout this study ($r=5$), this corresponds to 121 reads
+per agent per step in 2D versus 1{,}331 reads per agent per step in 3D, an
+order-of-magnitude increase in onboard scan cost for the same radius. This
+has a direct engineering implication: Vel-v4.3's Study V finding that MAGR
+efficiency is radius-invariant in 2D (permitting a small, computationally
+cheap scan radius) cannot be assumed to transfer to 3D without
+re-verification, since the cubic cost scaling makes the choice of scan
+radius a substantially more consequential deployment decision in a voxel
+environment than in a 2D cell grid. Re-sweeping scan radius in 3D to locate
+the analogous radius-invariance threshold is identified as future work in
+Section~\ref{sec:limits}.
+
+\subsection{Elastic Boundary Collision}
+When an agent's predicted position exceeds the grid boundary $[0,31]^3$,
+its position is capped at the boundary and its velocity along the violated
+axis is reflected with restitution coefficient $\epsilon=-0.45$:
+\begin{equation}
+v_{j,i}(t+1) \leftarrow \epsilon \cdot v_{j,i}(t+1)
+\end{equation}
+
+\begin{algorithm}[t]
+\caption{Vel-v5.5 Per-Agent Update}
+\label{alg:vel55}
 \begin{algorithmic}[1]
-\Procedure{RunFlightTrial}{$N, G, \mu$}
-    \State $\mathcal{V} \gets \text{Initialize Uint8Array}(32768)$
-    \State $\text{Positions} \gets \text{SeedAgents}(N, [16.0, 28.0, 16.0])$
-    \State $\text{Steps} \gets 0, \quad \text{Covered} \gets 0$
-    \While{$\text{Steps} < 150$}
-        \For{each agent $i \in \{1 \dots N\}$}
-            \State $\mathbf{w}_{\text{gust}} \gets \text{XorshiftRNG}(G)$
-            \State $\mathbf{v}_i \gets \mu \mathbf{v}_i + \mathbf{w}_{\text{gust}} - \mathbf{g}_{\text{drift}}$
-            \State $\mathbf{p}_i \gets \mathbf{p}_i + \mathbf{v}_i$
-            \State $\mathbf{p}_i, \mathbf{v}_i \gets \text{HandleElasticCollisions}(\mathbf{p}_i, \mathbf{v}_i)$
-            \State $(ix, iy, iz) \gets \lfloor\mathbf{p}_i\rfloor$
-            \If{$\text{VoxelIsEmpty}(ix, iy, iz)$}
-                \State $\mathcal{V}[ix, iy, iz] \gets 1$
-                \State $\text{Covered} \gets \text{Covered} + 1$
-            \EndIf
-        \EndFor
-        \State \text{Steps} $\gets$ \text{Steps} $+ 1$
-    \EndWhile
-    \State \Return $\text{Covered} / (\text{Steps} \cdot N)$
+\Procedure{UpdateAgent}{$i$}
+    \State $(gx,gy,gz) \gets \lfloor \mathbf{p}_i \rfloor$
+    \State $c(gx,gy,gz) \gets 1$
+    \State Scan Moore neighborhood of radius $r$ for nearest unexplored voxel
+    \If{found at $(dx^*,dy^*,dz^*)$}
+        \State $\vec{R}_G \gets$ Eq.~\ref{eq:magr_found}
+    \Else
+        \State $\vec{R}_G \gets$ Eq.~\ref{eq:magr_fallback}
+    \EndIf
+    \State $\mathbf{w}_{\text{gust}} \gets$ sample per Eq.~\ref{eq:gust}
+    \State $\mathbf{v}_i \gets \mu\mathbf{v}_i + \vec{R}_G - \mathbf{g}_{\text{drift}} + \mathbf{w}_{\text{gust}}$
+    \State $\mathbf{p}_i \gets \mathbf{p}_i + \mathbf{v}_i$
+    \State Apply elastic boundary collision if $\mathbf{p}_i$ exceeds $[0,31]^3$
+    \State Mark voxel at $\lfloor \mathbf{p}_i \rfloor$ explored if unexplored
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
 
-% ── EMPIRICAL RESULTS AND GRAPH ANALYSIS ──────────────────────────────────────
-\section{Empirical Results \& Statistical Characterization}
+\section{Performance Metrics}
+\label{sec:metrics}
+
+\subsection{Spatio-Temporal Efficiency}
+Consistent with Vel-v4.3, the primary metric is:
+\begin{equation}
+\eta = \frac{\Delta C}{\Delta T \cdot N}
+\end{equation}
+where $\Delta C$ is the number of newly explored voxels over the trial,
+$\Delta T$ is the number of elapsed timesteps, and $N$ is agent count. This
+is equivalently computed here as $\text{Covered}/(\text{Steps}\cdot N)$ over
+a fixed 150-step trial.
+
+\subsection{Stability}
+Trial-to-trial standard deviation of $\eta$ within a configuration:
+\begin{equation}
+\sigma = \sqrt{\frac{1}{K}\sum_{k=1}^{K}(\eta_k - \bar{\eta})^2}
+\end{equation}
+
+\section{Wind Gust Sweep: Methodology}
+\label{sec:study}
+
+We fix population $N=150$, momentum $\mu=0.99$ (the Vel-v4.3 Study IV
+optimum), MAGR steering factor $G=1.5$ (the Vel-v4.3 Study III optimum at
+$N=300$; re-validating this choice at $N=150$ in 3D is identified as future
+work in Section~\ref{sec:limits}), and scan radius $r=5$. We sweep wind
+gust intensity $G_{\text{wind}} \in \{0,2,4,6,8\}$, running 500 independent
+trials per gust level (2{,}500 trials total) on the $32\times32\times32$
+voxel grid described in Section~\ref{sec:architecture}. Each trial runs for
+a fixed 150 timesteps. All trials use independent random seeds drawn from a
+single seed sequence for reproducibility.
+
+\section{Results}
 \label{sec:results}
 
-The parallelized simulation engine was deployed to process $10{,}000{,}000$ independent trials, sweeping the Gust Intensity parameter $G \in \{2, 3, 4, 5, 6\}$ under a high-momentum tracking state ($\mu=0.98$) and population size $N=150$.
-
-\subsection{Global Convergence Analysis}
-\begin{figure}[htbp]
+\begin{table}[t]
 \centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/AeroAnalysis_Plots/figG1_convergence.png}
-\caption{Cumulative average efficiency $\eta$ converging to $0.3523$ across $10{,}000{,}000$ trials, demonstrating the system's global stability.}
-\label{fig:figG1}
+\caption{Wind Gust Sweep Results ($N=150$, $\mu=0.99$, $G=1.5$, $r=5$, 500 trials per level)}
+\label{tab:gust_sweep}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$G_{\text{wind}}$ & $\bar{\eta}$ & $\sigma_\eta$ & min & max \\
+\midrule
+0 & 0.2361 & 0.0059 & 0.2197 & 0.2523 \\
+2 & 0.6204 & 0.0053 & 0.6036 & 0.6347 \\
+4 & \textbf{0.6664} & 0.0034 & 0.6566 & 0.6763 \\
+6 & 0.6565 & 0.0029 & 0.6478 & 0.6658 \\
+8 & 0.6373 & 0.0028 & 0.6291 & 0.6454 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/fig1_efficiency_vs_gust.png}
+\caption{Mean spatio-temporal efficiency vs. wind gust intensity, with
+$\pm 1\sigma$ error bars ($n=500$ per level). Efficiency peaks at
+$G_{\text{wind}}=4$.}
+\label{fig:eff_vs_gust}
 \end{figure}
 
-As shown in Fig.~\ref{fig:figG1}, the cumulative average spatio-temporal efficiency $\eta$ exhibits rapid convergence behavior. Within the first $200{,}000$ trials, minor stochastic oscillations occur. Beyond $1{,}000{,}000$ trials, the cumulative mean converges asymptotically to exactly:
-\begin{equation}
-    \lim_{K \to \infty} \overline{\eta} = 0.3523
-    \label{eq:limit_mean}
-\end{equation}
-This flat, stable line across $10^7$ iterations provides definitive empirical proof that the vel-v5.5 protocol remains structurally stable under continuous wind gust disturbances.
-
-\subsection{Aerodynamic Gust Impact on Spatio-Temporal Efficiency}
-The impact of wind gust intensity $G$ on the exploration efficiency is illustrated in the violin plots of Fig.~\ref{fig:figG2} and the Probability Density Functions (PDF) of Fig.~\ref{fig:figG4}.
-
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/AeroAnalysis_Plots/figG2_eta_vs_G.png}
-\caption{Violin plots illustrating the distribution of Spatio-Temporal Efficiency ($\eta$) as a function of the Wind Gust parameter $G$.}
-\label{fig:figG2}
+\includegraphics[width=0.95\columnwidth]{figures/fig2_efficiency_boxplot.png}
+\caption{Full efficiency distribution by gust level ($n=500$ per level).
+Distributions are tight and non-overlapping between the zero-gust and
+all wind-perturbed conditions.}
+\label{fig:eff_boxplot}
 \end{figure}
 
-\begin{figure}[htbp]
+\subsection{Zero-Gust Collapse}
+The zero-gust condition ($G_{\text{wind}}=0$) produces the lowest observed
+efficiency, $\bar{\eta}=0.236$, less than half the efficiency of every
+wind-perturbed condition tested. Given the tight standard deviation at this
+level ($\sigma=0.0059$) and the complete non-overlap of its distribution
+with any other tested gust level (Fig.~\ref{fig:eff_boxplot}), this is not
+a marginal effect. We attribute this to the deterministic nature of the
+nearest-cell steering law under zero disturbance: absent any stochastic
+perturbation, agents following identical local scan-and-steer logic from
+similar starting conditions can settle into mutually reinforcing,
+locally-stable trajectory patterns that repeatedly re-scan the same
+already-explored local neighborhoods rather than escaping toward more
+distant unexplored volume. This is consistent with known local-minima
+trapping behavior in deterministic potential-field and frontier-following
+navigation methods generally.
+
+\subsection{Non-Monotonic Response to Gust Intensity}
+Efficiency rises sharply from $G_{\text{wind}}=0$ to $G_{\text{wind}}=2$,
+continues to a peak at $G_{\text{wind}}=4$ ($\bar{\eta}=0.6664$), then
+declines modestly through $G_{\text{wind}}=6$ and $G_{\text{wind}}=8$
+(Fig.~\ref{fig:eff_vs_gust}). This shape is consistent with wind gust
+functioning as an exploration-enhancing stochastic perturbation at moderate
+intensity -- breaking agents out of the local trapping behavior identified
+above -- while at higher intensity the perturbation increasingly dominates
+and degrades the steering signal itself, consistent with the elastic
+boundary collision mechanism dissipating a larger share of trajectory
+energy as gust-driven boundary impacts become more frequent.
+
+\subsection{Stability Decreases with Distance from Zero-Gust}
+Standard deviation is highest at $G_{\text{wind}}=0$ ($\sigma=0.0059$) and
+generally decreases as gust intensity rises to $G_{\text{wind}}=6$
+($\sigma=0.0029$) and $G_{\text{wind}}=8$ ($\sigma=0.0028$), with
+$G_{\text{wind}}=2$ as a mild exception ($\sigma=0.0053$). This suggests
+that moderate-to-high wind gust, in addition to raising mean efficiency
+relative to the zero-gust case, also produces more trial-to-trial
+consistent behavior -- a potentially useful property for deployment
+scenarios requiring predictable coverage completion times.
+
+\subsection{Statistical Significance}
+\label{sec:stats}
+To confirm that the differences reported above reflect a genuine effect
+rather than sampling noise, we conducted pairwise Welch's $t$-tests between
+each adjacent gust level in Table~\ref{tab:gust_sweep}, with Cohen's $d$
+computed as the standardized effect size. Results are summarized in
+Table~\ref{tab:ttests}.
+
+\begin{table}[t]
 \centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/AeroAnalysis_Plots/figG4_kde.png}
-\caption{Probability Density Functions (PDF) showing efficiency distribution shifts under different wind gust conditions.}
-\label{fig:figG4}
+\caption{Pairwise Welch's $t$-tests Between Adjacent Gust Levels ($N=150$ dataset)}
+\label{tab:ttests}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Comparison & $t$ & $p$ & Cohen's $d$ \\
+\midrule
+$G_{\text{wind}}{=}0$ vs.\ $2$ & $-1080.5$ & $<10^{-300}$ & $68.4$ \\
+$G_{\text{wind}}{=}2$ vs.\ $4$ & $-163.4$ & $<10^{-300}$ & $10.3$ \\
+$G_{\text{wind}}{=}4$ vs.\ $6$ & $49.6$ & $\approx10^{-268}$ & $-3.1$ \\
+$G_{\text{wind}}{=}6$ vs.\ $8$ & $107.4$ & $<10^{-300}$ & $-6.8$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every adjacent-level comparison is statistically significant at an
+extreme margin, and every effect size exceeds conventional thresholds for
+a ``large'' effect ($|d|>0.8$) by more than an order of magnitude. The
+zero-gust-to-moderate-gust transition in particular ($d=68.4$) is among
+the largest effect sizes we are aware of being reported in a swarm
+coverage parameter study, reflecting the near-total non-overlap of the
+zero-gust distribution with every wind-perturbed condition visible in
+Fig.~\ref{fig:eff_boxplot}. We conclude that the non-monotonic response to
+gust intensity reported in this paper is a robust feature of the tested
+configuration and not an artifact of sampling variation.
+
+\subsection{Population Density Effect: Preliminary N=300 Comparison}
+Vel-v4.3's own Study I identified a genuine diminishing-returns effect in
+Coordination Quality ($\eta/N$) as population scales, driven by
+scan-overlap congestion. To check whether an analogous effect appears in
+the 3D setting, we ran a preliminary comparison at $N=300$ (double the
+main study's population) at three representative gust levels
+($G_{\text{wind}} \in \{0,4,8\}$), with 20 trials per level -- a smaller
+sample than the main study's 500 trials per level, run as a pilot check
+rather than a full characterization. Results are shown in
+Table~\ref{tab:n300} and Fig.~\ref{fig:n150_vs_n300}.
+
+\begin{table}[t]
+\centering
+\caption{N=300 Preliminary Comparison (20 trials per gust level)}
+\label{tab:n300}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$G_{\text{wind}}$ & $\bar{\eta}$ ($N=300$) & $\bar{\eta}$ ($N=150$) & Ratio \\
+\midrule
+0 & 0.1804 & 0.2361 & 0.76 \\
+4 & 0.5014 & 0.6664 & 0.75 \\
+8 & 0.4776 & 0.6373 & 0.75 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/fig3_n150_vs_n300.png}
+\caption{Efficiency vs. gust intensity at $N=150$ (full study, $n=500$ per
+level) and $N=300$ (preliminary comparison, $n=20$ per level). The
+qualitative pattern -- zero-gust collapse, peak at moderate gust -- holds
+at both population sizes, though absolute efficiency is systematically
+lower at $N=300$.}
+\label{fig:n150_vs_n300}
 \end{figure}
 
-Our data reveals a non-linear relationship between gust intensity and efficiency:
-\begin{itemize}
-    \item \textbf{Low Turbulence ($G=2$):} The swarm exhibits concentrated efficiency around $\overline{\eta} = 0.349$, but with a wider lower-tail, indicating occasional coverage stagnation when agents are not sufficiently dispersed.
-    \item \textbf{Optimal Turbulence ($G=3$):} Efficiency reaches its peak of \textbf{$\overline{\eta} = 0.362$}. This indicates that moderate wind disturbances act as a natural dispersion mechanism, actively breaking up local agent clusters without causing trajectory instability.
-    \item \textbf{Excessive Turbulence ($G \geq 5$):} As $G$ increases to $6$, the efficiency distribution drops to $\overline{\eta} = 0.341$. In this regime, the stochastic wind forces dominate the MAGR steering vectors, causing highly chaotic trajectories and frequent high-speed boundary collisions.
-\end{itemize}
+At all three tested gust levels, doubling population from 150 to 300
+reduces mean efficiency by a remarkably consistent ratio of approximately
+0.75--0.76, while the qualitative shape of the gust-response curve --
+zero-gust collapse, peak at moderate gust, mild decline at high gust --
+is preserved at both population sizes. This is consistent with the same
+scan-overlap congestion mechanism Vel-v4.3 documented in 2D: because
+efficiency $\eta$ is normalized by $N$, a larger swarm operating in the
+same volume must achieve proportionally more coverage to maintain
+constant $\eta$, and increased agent density raises the likelihood that
+multiple agents simultaneously target the same nearby unexplored voxel.
+We emphasize that this comparison uses a substantially smaller sample
+than the main $N=150$ study and should be treated as a preliminary
+finding pending a full $N=300$ sweep at 500 trials per level, consistent
+with Vel-v4.3's own systematic population-sweep methodology.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/AeroAnalysis_Plots/figG8_cdf.png}
-\caption{Cumulative Distribution Functions (CDF) of the system's efficiency across all swept Gust levels.}
-\label{fig:figG8}
-\end{figure}
-
-The Cumulative Distribution Functions (CDF) in Fig.~\ref{fig:figG8} show that the curves shift to the right as $G$ rises from $2$ to $3$, before shifting back to the left as $G$ increases to $6$. This pattern confirms $G=3$ as the global optimal operating point for decentralized volumetric dispersion.
-
-\subsection{Correlation and Stability Limits}
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/AeroAnalysis_Plots/figG6_heatmap.png}
-\caption{Parameter Correlation Heatmap, demonstrating the strong negative correlation between Gust Intensity $G$ and system efficiency.}
-\label{fig:figG6}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\columnwidth]{Vel_3d_Voxel_Graphs/AeroAnalysis_Plots/figG7_stability.png}
-\caption{1000-Trial Rolling Standard Deviation ($\sigma$) tracking variance stability around the $\sigma = 0.0084$ baseline across the entire trial duration.}
-\label{fig:figG7}
-\end{figure}
-
-The Parameter Correlation Matrix (Fig.~\ref{fig:figG6}) displays a strong negative correlation of \textbf{$-0.43$} between Gust Intensity $G$ and Spatio-Temporal Efficiency. This confirms that while moderate disturbances assist agent dispersion, high-intensity gusts degrade the tracking performance of the swarm.
-
-To assess the long-term reliability of the system, Fig.~\ref{fig:figG7} plots the $1000$-trial rolling standard deviation ($\sigma$). The variance stays bounded within a tight, stationary envelope between $0.0080$ and $0.0091$, with an average value of \textbf{$\sigma = 0.0084$}. This bounded variance demonstrates that the swarm exhibits stable, predictable behaviors across massive, continuous deployments.
-
-% ── STRATEGIC IMPLEMENTATION PROTOCOL (MVR) ───────────────────────────────────
 \section{Strategic Implementation Protocol (MVR)}
 \label{sec:mvr}
 
-To transition the optimized 3D vel-v5.5 protocol onto physical quadrotor platforms, we establish five mandatory \textbf{Minimum Viable Requirements (MVR)}:
+Based on the results in Section~\ref{sec:results} and the Vel-v4.3
+findings this protocol extends, we identify the following Minimum Viable
+Requirements for physical multi-rotor deployment:
 
 \begin{enumerate}
-    \item \textbf{MVR-1: Onboard Controller Frequency $\geq 50$ Hz.} Trajectory calculations must run at high frequency to maintain positioning accuracy in bounded 3D voxel spaces.
-    \item \textbf{MVR-2: Network Sync Latency $< 15$ ms.} Volumetric map states must propagate quickly through the mesh network to prevent multiple drones from trying to cover the same voxels.
-    \item \textbf{MVR-3: Momentum Coefficient $\mu \geq 0.95$.} Drones must maintain high momentum to ensure smooth, energy-efficient sweeping trajectories and avoid abrupt, battery-draining turns.
-    \item \textbf{MVR-4: Local Moore Scan Range $r = 8$.} In 3D space, scanning up to $8$ voxels provides the ideal trade-off between local boundary awareness and computational efficiency.
-    \item \textbf{MVR-5: Wind Mitigation Tuning $G \in [2.5, 3.5]$.} Flight stabilization loops must be tuned to allow moderate wind perturbations to assist with dispersion, while actively damping higher gust forces.
+\item \textbf{MVR-1: Controller Update Frequency $\geq 50$ Hz.} Consistent
+with Vel-v4.3's KVL update rate requirement.
+\item \textbf{MVR-2: Mesh Synchronization Latency $< 15$ ms.} To limit
+Ghost Redundancy (multiple agents targeting the same unexplored voxel
+before SSM writes propagate).
+\item \textbf{MVR-3: Momentum Coefficient $\mu \geq 0.95$.} Carried over
+from Vel-v4.3 Study IV; not independently re-swept in the present 3D study
+(see Section~\ref{sec:limits}).
+\item \textbf{MVR-4: Do not operate in still-air conditions.} Section
+\ref{sec:results} shows zero-gust operation produces the lowest observed
+efficiency of any tested condition. Where natural wind is unavailable or
+insufficient, an artificial stochastic perturbation to agent velocity is
+recommended to replicate the exploration-enhancing effect observed here.
+\item \textbf{MVR-5: Target Operating Gust Range $G_{\text{wind}} \in
+[3,5]$.} Bracketing the empirical peak at $G_{\text{wind}}=4$.
 \end{enumerate}
 
-% ── CONCLUSION ────────────────────────────────────────────────────────────────
-\section{Conclusion \& Future Work}
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Noise-Assisted Exploration: A Broader Context}
+The finding that stochastic perturbation improves a deterministic search
+process is not unique to swarm coverage. In combinatorial optimization,
+simulated annealing deliberately introduces a temperature-controlled
+stochastic perturbation to escape local minima that a purely greedy search
+would remain trapped in \cite{kirkpatrick1983}. In nonlinear dynamical
+systems, stochastic resonance describes conditions under which added noise
+improves detection or response of an otherwise sub-threshold signal. The
+zero-gust collapse and subsequent moderate-gust peak reported in
+Section~\ref{sec:results} are broadly consistent with this class of
+phenomena: the MAGR steering law, as a purely deterministic
+nearest-cell-seeking rule, appears to define a search landscape containing
+locally stable configurations from which a swarm of identically-programmed
+agents cannot escape without external perturbation. Wind gust, in this
+framing, is not merely an environmental disturbance to be rejected by
+robust control, but is itself doing useful computational work: it is the
+source of the randomness the steering law itself does not provide. This
+reframing has a direct engineering implication distinct from the MVR
+recommendations in Section~\ref{sec:mvr}: if a deployment environment is
+unusually still, deliberately injecting a small stochastic perturbation
+into the KVL velocity update (rather than merely tolerating ambient wind)
+may be preferable to relying on incidental turbulence.
+
+\subsection{Why Efficiency Declines at High Gust Intensity}
+The decline in mean efficiency beyond $G_{\text{wind}}=4$ (Section
+\ref{sec:results}) is consistent with two compounding mechanisms. First, as
+gust magnitude grows relative to the fixed MAGR steering magnitude ($G
+\cdot k$ in Eq.~\ref{eq:magr_found}), the wind term increasingly dominates
+the velocity update in Eq.~\ref{eq:vel_update}, degrading the directional
+signal that carries an agent toward its identified target voxel. Second,
+higher gust intensity increases the frequency with which agents' predicted
+positions exceed the grid boundary, triggering the elastic collision
+mechanism (Eq.~\ref{eq:vel_update}) more often; because the restitution
+coefficient $\epsilon=-0.45$ dissipates a substantial fraction of kinetic
+energy on each boundary impact, more frequent boundary collisions convert
+a larger share of the agent's total trajectory energy into dissipated
+energy rather than productive exploration motion. Distinguishing the
+relative contribution of these two mechanisms would require an ablation
+in which boundary collision frequency is logged directly -- a
+straightforward instrumentation addition identified as future work.
+
+\subsection{Relationship to the Superseded Vel-v5.0 Formulation}
+It is worth stating plainly why this paper does not attempt to reconcile
+its findings with the continuous potential-field formulation and Lyapunov
+convergence proof of the superseded Vel-v5.0 draft (Section
+\ref{sec:intro}). The two formulations are different control laws: the
+potential-field formulation computes steering as the negative gradient of
+a smooth composite potential summing agent-repulsion, boundary-distance,
+and exploration-attraction terms, while the discrete formulation studied
+here computes steering as a unit vector toward the single nearest
+unexplored voxel located by discrete neighborhood search. A convergence
+proof derived for the former does not apply to the latter, and we regard
+an unsupported claim of formal convergence as a more serious defect in an
+engineering protocol paper than the simple absence of one. The empirical
+characterization in this paper is offered as a substitute standard of
+evidence appropriate to the discrete steering law actually implemented and
+tested.
+
+\section{Threats to Validity}
+\label{sec:limits}
+
+We organize the limitations of this study using the standard internal,
+external, and construct validity framing common to empirical robotics and
+software engineering research.
+
+\subsection{Internal Validity}
+\textit{Does the reported effect actually stem from gust intensity, rather
+than a confound?} All configuration parameters other than
+$G_{\text{wind}}$ (population, momentum, MAGR steering factor, scan radius,
+grid size, trial length, and random seed sequence) were held fixed across
+the sweep, and every trial's random seed is drawn independently from a
+common seed sequence (Section~\ref{sec:repro}), so no shared randomness
+could produce a spurious cross-condition correlation. The statistical
+tests in Section~\ref{sec:stats} confirm the observed differences are
+far larger than sampling variation could plausibly produce. We consider
+internal validity for the specific claim ``efficiency varies
+non-monotonically with $G_{\text{wind}}$ under this configuration'' to be
+well supported.
+
+\subsection{External Validity}
+\textit{Do these findings generalize beyond the tested configuration?}
+This is the weakest aspect of the present study. All results use a single
+population size for the main study ($N=150$), a single MAGR steering
+factor and momentum coefficient (both carried over from Vel-v4.3's 2D
+optimum rather than independently re-derived in 3D), a single scan radius,
+and a single grid size and trial length. The preliminary $N=300$ comparison
+(Section~\ref{sec:results}) suggests the qualitative gust-response pattern
+is not an artifact of the specific $N=150$ configuration, but this was
+tested at reduced sample size and only three gust levels. We explicitly do
+not claim that the reported optimum ($G_{\text{wind}}=4$) generalizes to
+other population sizes, steering factors, momentum coefficients, scan
+radii, or grid dimensions without further testing.
+
+\subsection{Construct Validity}
+\textit{Does spatio-temporal efficiency $\eta$ actually measure what a
+deployment engineer cares about?} $\eta$ is normalized by both elapsed time
+and agent count, and is therefore a reasonable proxy for the economic cost
+of a coverage mission (fewer agent-timesteps per unit coverage is cheaper
+to operate), but it does not directly capture other properties a physical
+deployment may require, such as worst-case time-to-completion, energy
+consumption per agent, or resilience to individual agent failure. No claim
+in this paper should be read as a claim about those other properties.
+
+\subsection{Summary of Untested Claims}
+Consolidating the above, we state explicitly what remains untested:
+
+\begin{itemize}
+\item \textbf{No formal convergence guarantee.} Unlike a continuous
+potential-field formulation, no Lyapunov-style or other formal proof of
+asymptotic coverage is provided for the discrete nearest-cell steering law
+studied here. The empirical results in Section~\ref{sec:results} should be
+read as evidence of practical behavior under the tested conditions, not as
+a proven guarantee.
+\item \textbf{No baseline comparison.} This study characterizes Vel-v5.5's
+own response to wind gust intensity; it does not compare Vel-v5.5 against
+classical artificial potential field or frontier-exploration methods run
+under identical 3D, wind-perturbed conditions. Such a baseline comparison
+is necessary to substantiate any claim of relative advantage over existing
+methods and is identified as the immediate next step for this line of work.
+\item \textbf{Population size only preliminarily explored.} The main study
+uses $N=150$. Section~\ref{sec:results} reports a preliminary $N=300$
+comparison (20 trials per level, versus 500 for the main study) that finds
+a consistent efficiency reduction ratio and a preserved qualitative
+gust-response shape, suggestive of the same scan-overlap congestion
+Vel-v4.3 documented in 2D. This finding should be treated as preliminary;
+a full $N=300$ sweep at matching sample size (500 trials per level), and
+ideally additional population points as in Vel-v4.3's own three-point
+sweep, is needed before a population-dependent claim can be made with the
+same confidence as the gust-intensity findings.
+\item \textbf{MAGR steering factor, momentum, and scan radius not
+re-swept in 3D.} $G=1.5$, $\mu=0.99$, and $r=5$ are carried over from
+Vel-v4.3's 2D optimum rather than independently re-derived for the 3D
+voxel environment. Section~\ref{sec:architecture}'s complexity analysis
+indicates scan radius in particular may not transfer directly given the
+cubic rather than quadratic cost scaling in 3D.
+\item \textbf{Simulation only.} No physical hardware validation has been
+performed. The MVR specifications in Section~\ref{sec:mvr} are design
+targets, not validated hardware requirements.
+\end{itemize}
+
+\section{Reproducibility and Data Availability}
+\label{sec:repro}
+
+All 2{,}500 trial records underlying Table~\ref{tab:gust_sweep} and the
+20-trial-per-level $N=300$ comparison underlying Table~\ref{tab:n300} were
+generated by a single-file Python simulation implementing
+Algorithm~\ref{alg:vel55} exactly as specified. Each trial uses an
+independently-drawn random seed from a common seed sequence, and raw
+per-trial efficiency values (not only summary statistics) are retained in
+the accompanying dataset, permitting independent recomputation of every
+statistic and figure reported in this paper, including the pairwise
+significance tests in Section~\ref{sec:stats}.
+
+\section{Conclusion}
 \label{sec:conclusion}
 
-This paper has presented the theoretical formalization and multi-threaded characterization of the vel-v5.5 protocol. By extending the model to 3D continuous flight kinematics and validating it across $10{,}000{,}000$ independent trials, we have demonstrated that the protocol achieves highly stable volumetric coverage under stochastic wind disturbances. Future work will focus on deploying this 3D flight engine onto physical quadrotor hardware to validate these stability and convergence properties in real-world conditions.
+Vel-v5.5 extends the empirically-validated Vel-v4.3 MAGR frontier-steering
+protocol from a 2D cell grid into a 3D voxel environment subject to
+aerodynamic disturbance. Across 2{,}500 trials sweeping wind gust
+intensity, we find that stochastic wind perturbation is not merely a
+disturbance to be rejected but functions as an exploration-enhancing
+mechanism: zero-gust operation collapses efficiency to less than half of
+any wind-perturbed condition tested, efficiency peaks at moderate gust
+intensity ($G_{\text{wind}}=4$), and efficiency declines modestly under
+higher-intensity gust. These findings are reported strictly as empirical
+observations under the tested conditions; Section~\ref{sec:limits}
+identifies baseline comparison, population re-sweeping, and formal
+theoretical characterization of the discrete steering law as necessary next
+steps before broader claims of protocol superiority can be substantiated.
 
-% ── ACKNOWLEDGEMENTS ──────────────────────────────────────────────────────────
 \section*{Acknowledgements}
-The author acknowledges Gnaneswar Kumar Pullaganti and Dakshith Karthikeyan for their contributions during the early science fair phase of the Vel project. Their involvement was limited to that initial stage; they had no role in the development of vel-v5.5, the 3D voxel flight engine, the parallel sweeps reported in this paper, or any part of this work.
-
-The author used Gemini (Google) as an AI assistant during the preparation of this manuscript. All research concepts, experimental design, simulation implementation, data collection, and scientific conclusions are the original work of the author. The AI assistant was used for LaTeX formatting and prose editing only.
-
+The author acknowledges Gnaneswar Kumar Pullaganti and Dakshith Karthikeyan
+for their contributions during the early science fair phase of the Vel
+project. Their involvement was limited to that initial stage; they had no
+role in the development of Vel-v5.5 or any part of this work. The author
+used Claude (Anthropic) for simulation code implementation assistance,
+LaTeX formatting, and prose editing; all research concepts, experimental
+design, and scientific conclusions are the original work of the author.
 The author's ORCID is 0009-0006-2907-8815.
 
-% ── References ────────────────────────────────────────────────────────────────
-\begin{thebibliography}{99}
+\begin{thebibliography}{9}
 
-\bibitem{dorigo2014scholar}
-M.~Dorigo, M.~Birattari, and M.~Brambilla, ``Swarm robotics,'' \emph{Scholarpedia}, vol.~9, no.~1, p. 1463, 2014.
-
-\bibitem{pan2025}
-H.~Pan, M.~Zahmatkesh, F.~Rekabi-Bana, F.~Arvin, and J.~Hu, ``T-STAR: Time-optimal swarm trajectory planning for quadrotor unmanned aerial vehicles,'' \emph{IEEE Trans. Intell. Transp. Syst.}, vol.~26, no.~8, pp. 12532--12547, 2025.
-
-\bibitem{kernbach2013}
-S.~Kernbach, Ed., ``Architectures and control of networked robotic systems,'' in \emph{Handbook of Collective Robotics}, Jenny Stanford Publishing, 2013, pp. 105--128.
+\bibitem{latombe1991}
+J.-C.~Latombe, \emph{Robot Motion Planning}. Boston, MA: Kluwer Academic Publishers, 1991.
 
 \bibitem{brambilla2013review}
 M.~Brambilla, E.~Ferrante, M.~Birattari, and M.~Dorigo, ``Swarm robotics: a review from the swarm engineering perspective,'' \emph{Swarm Intelligence}, vol.~7, no.~1, pp. 1--41, 2013.
 
-\bibitem{latombe1991}
-J.-C.~Latombe, \emph{Robot Motion Planning}. Boston, MA: Kluwer Academic Publishers, 1991.
+\bibitem{yamauchi1997}
+B.~Yamauchi, ``A frontier-based approach for autonomous exploration,'' in \emph{Proc. IEEE Int. Symp. Comput. Intell. Robot. Autom. (CIRA)}, 1997, pp. 146--151.
+
+\bibitem{saska2014cooperative}
+M.~Saska et al., ``Autonomous deployment of swarms of micro-aerial vehicles in cooperative surveillance,'' in \emph{Proc. ICUAS}, 2014.
+
+\bibitem{dorigo2006ant}
+M.~Dorigo, M.~Birattari, and T.~Stutzle, ``Ant colony optimization,'' \emph{IEEE Comput. Intell. Mag.}, vol.~1, no.~4, pp. 28--39, 2006.
+
+\bibitem{banks2007}
+A.~Banks, J.~Vincent, and C.~Anyakoha, ``A review of particle swarm optimization. Part I: background and development,'' \emph{Nat. Comput.}, vol.~6, no.~4, pp. 467--484, 2007.
 
 \bibitem{lloyd1982}
 S.~Lloyd, ``Least squares quantization in {PCM},'' \emph{IEEE Trans. Inf. Theory}, vol.~28, no.~2, pp. 129--137, 1982.
@@ -513,221 +798,16 @@ S.~Lloyd, ``Least squares quantization in {PCM},'' \emph{IEEE Trans. Inf. Theory
 \bibitem{cortes2004}
 J.~Cortés, S.~Martínez, T.~Karatas, and F.~Bullo, ``Coverage control for mobile sensing networks,'' \emph{IEEE Trans. Robot. Autom.}, vol.~20, no.~2, pp. 243--255, 2004.
 
-\bibitem{yamauchi1997}
-B.~Yamauchi, ``A frontier-based approach for autonomous exploration,'' in \emph{Proc. IEEE Int. Symp. Comput. Intell. Robot. Autom. (CIRA)}, 1997, pp. 146--151.
-
-\bibitem{dorigo2021past}
-M.~Dorigo, G.~Theraulaz, and V.~Trianni, ``Swarm robotics: Past, present, and future [point of view],'' \emph{Proc. IEEE}, vol.~109, no.~7, pp. 1152--1165, 2021.
-
-\bibitem{hu2020two}
-J.~Hu, P.~Bhowmick, and A.~Lanzon, ``Two-layer distributed formation-containment control strategy for linear swarm systems: Algorithm and experiments,'' \emph{Int. J. Robust Nonlinear Control}, vol.~30, no.~16, pp. 6433--6453, 2020.
-
-\bibitem{kagan2020}
-E.~Kagan, Ed., \emph{Autonomous mobile robots and multi-robot systems: motion-planning, communication and swarming}, 1st ed. Hoboken, NJ: Wiley, 2020.
-
-\bibitem{cheraghi2021}
-A.~R.~Cheraghi, S.~Shahzad, and K.~Graffi, ``Past, present, and future of swarm robotics,'' \emph{arXiv preprint arXiv:2101.00671}, 2021.
-
-\bibitem{hu2020voronoi}
-J.~Hu, H.~Niu, J.~Carrasco, B.~Lennox, and F.~Arvin, ``Voronoi-based multi-robot autonomous exploration in unknown environments via deep reinforcement learning,'' \emph{IEEE Trans. Veh. Technol.}, 2020.
-
-\bibitem{hu2020occlusion}
-J.~Hu, A.~Turgut, T.~Krajnik, B.~Lennox, and F.~Arvin, ``Occlusion-based coordination protocol design for autonomous robotic shepherding tasks,'' \emph{IEEE Trans. Cogn. Dev. Syst.}, 2020.
-
-\bibitem{alkouz2020sdaas}
-B.~Alkouz, A.~Bouguettaya, and S.~Mistry, ``Swarm-based drone-as-a-service ({SDaaS}) for delivery,'' in \emph{Proc. IEEE ICWS}, 2020, pp. 441--448.
-
-\bibitem{alkouz2020formation}
-B.~Alkouz and A.~Bouguettaya, ``Formation-based selection of drone swarm services,'' in \emph{Proc. MobiQuitous}, 2020, pp. 386--394.
-
-\bibitem{hocraffer2017}
-A.~Hocraffer and C.~S.~Nam, ``A meta-analysis of human-system interfaces in unmanned aerial vehicle ({UAV}) swarm management,'' \emph{Appl. Ergon.}, vol.~58, pp. 66--80, 2017.
-
-\bibitem{lewis2013}
-M.~Lewis, ``Human interaction with multiple remote robots,'' \emph{Rev. Hum. Factors Ergon.}, vol.~9, no.~1, pp. 131--174, 2013.
-
-\bibitem{kolling2016survey}
-A.~Kolling, P.~Walker, N.~Chakraborty, K.~Sycara, and M.~Lewis, ``Human interaction with robot swarms: A survey,'' \emph{IEEE Trans. Hum.-Mach. Syst.}, vol.~46, no.~1, pp. 9--26, 2016.
-
-\bibitem{lendon2014}
-B.~Lendon, ``{U.S.} Navy could 'swarm' foes with robot boats,'' \emph{CNN}, Oct. 6, 2014.
-
-\bibitem{madrigal2018}
-A.~C.~Madrigal, ``Drone swarms are going to be terrifying and hard to stop,'' \emph{The Atlantic}, Mar. 7, 2018.
-
-\bibitem{kushleyev2013agile}
-A.~Kushleyev, D.~Mellinger, C.~Powers, and V.~Kumar, ``Towards a swarm of agile micro quadrotors,'' \emph{Autonomous Robots}, vol.~35, no.~4, pp. 287--300, 2013.
-
-\bibitem{vasarhelyi2014}
-G.~Vasarhelyi et al., ``Outdoor flocking and formation flight with autonomous aerial robots,'' in \emph{Proc. IEEE/RSJ IROS}, 2014.
-
-\bibitem{faigl2013}
-J.~Faigl, T.~Krajnik, J.~Chudoba, L.~Preucil, and M.~Saska, ``Low-cost embedded system for relative localization in robotic swarms,'' in \emph{Proc. IEEE ICRA}, 2013.
-
-\bibitem{saska2014visual}
-M.~Saska, J.~Vakula, and L.~Preucil, ``Swarms of micro aerial vehicles stabilized under a visual relative localization,'' in \emph{Proc. IEEE ICRA}, 2014.
-
-\bibitem{saska2015}
-M.~Saska, ``{MAV}-swarms: unmanned aerial vehicles stabilized along a given path using onboard relative localization,'' in \emph{Proc. ICUAS}, 2015.
-
-\bibitem{saska2014cooperative}
-M.~Saska et al., ``Autonomous deployment of swarms of micro-aerial vehicles in cooperative surveillance,'' in \emph{Proc. ICUAS}, 2014.
-
-\bibitem{saska2014plume}
-M.~Saska, J.~Langr, and L.~Preucil, ``Plume tracking by a self-stabilized group of micro aerial vehicles,'' in \emph{Modelling and Simulation for Autonomous Systems}, 2014.
-
-\bibitem{saska2014motion}
-M.~Saska, Z.~Kasl, and L.~Preucil, ``Motion planning and control of formations of micro aerial vehicles,'' in \emph{Proc. 19th World Congr. IFAC}, 2014.
-
-\bibitem{saska2012hawk}
-M.~Saska, V.~Vonasek, T.~Krajnik, and L.~Preucil, ``Coordination and navigation of heterogeneous {UAV}s-{UGV}s teams localized by a hawk-eye approach,'' in \emph{Proc. IEEE/RSJ IROS}, 2012.
-
-\bibitem{chung2018survey}
-S.-J.~Chung et al., ``A survey on aerial swarm robotics,'' \emph{IEEE Trans. Robot.}, vol.~34, no.~4, pp. 837--855, 2018.
-
-\bibitem{saska2014mpc}
-M.~Saska, V.~Vonasek, T.~Krajnik, and L.~Preucil, ``Coordination and navigation of heterogeneous {MAV}–{UGV} formations localized by a ‘hawk-eye’-like approach under a model predictive control scheme,'' \emph{Int. J. Robot. Res.}, vol.~33, no.~10, pp. 1393--1412, 2014.
-
-\bibitem{kwon2012}
-H.~Kwon and D.~J.~Pack, ``A robust mobile target localization method for cooperative unmanned aerial vehicles using sensor fusion quality,'' \emph{J. Intell. Robot. Syst.}, vol.~65, pp. 479--493, 2012.
-
-\bibitem{itani2023}
-M.~Itani, T.~Chen, T.~Yoshioka, and S.~Gollakota, ``Creating speech zones with self-distributing acoustic swarms,'' \emph{Nature Communications}, vol.~14, no.~1, p. 5684, 2023.
-
-\bibitem{uwnews2023}
-UW News, ``{UW} team's shape-changing smart speaker lets users mute different areas of a room,'' 2023.
-
-\bibitem{harvard2014}
-Harvard, ``A self-organizing thousand-robot swarm,'' Aug. 14, 2014.
-
-\bibitem{zahugi2012}
-E.~M.~H.~Zahugi, A.~M.~Shabani, and T.~V.~Prasad, ``Libot: Design of a low cost mobile robot for outdoor swarm robotics,'' in \emph{Proc. IEEE CYBER}, 2012, pp. 342--347.
-
-\bibitem{arvin2014}
-F.~Arvin, J.~C.~Murray, L.~Shi, C.~Zhang, and S.~Yue, ``Development of an autonomous micro robot for swarm robotics,'' in \emph{Proc. IEEE ICMA}, 2014, pp. 635--640.
-
-\bibitem{beni1993}
-G.~Beni and J.~Wang, ``Swarm intelligence in cellular robotic systems,'' in \emph{Proceed. NATO Advanced Workshop on Robots and Biological Systems}, Springer, 1993, pp. 703--712.
-
-\bibitem{beni1989}
-G.~Beni, ``The concept of cellular robotic system,'' in \emph{Proc. IEEE ISIC}, 1989, pp. 57--62.
-
-\bibitem{gad2022pso}
-A.~G.~Gad, ``Particle swarm optimization algorithm and its applications: A systematic review,'' \emph{Arch. Comput. Methods Eng.}, vol.~29, no.~5, pp. 2531--2561, 2022.
-
-\bibitem{hu2021decentralized}
-J.~Hu, P.~Bhowmick, I.~Jang, F.~Arvin, and A.~Lanzon, ``A decentralized cluster formation containment framework for multirobot systems,'' \emph{IEEE Trans. Robot.}, 2021.
-
-\bibitem{sole2016}
-R.~Solé et al., ``Synthetic collective intelligence,'' \emph{BioSystems}, vol.~148, pp. 47--61, 2016.
-
-\bibitem{reynolds1987flocks}
-C.~W.~Reynolds, ``Flocks, herds and schools: A distributed behavioral model,'' in \emph{Proc. SIGGRAPH '87}, 1987, pp. 25--34.
-
-\bibitem{banks2007}
-A.~Banks, J.~Vincent, and C.~Anyakoha, ``A review of particle swarm optimization. Part I: background and development,'' \emph{Nat. Comput.}, vol.~6, no.~4, pp. 467--484, 2007.
-
-\bibitem{vicsek1995}
-T.~Vicsek et al., ``Novel type of phase transition in a system of self-driven particles,'' \emph{Phys. Rev. Lett.}, vol.~75, no.~6, pp. 1226--1229, 1995.
-
-\bibitem{buhl2006}
-J.~Buhl et al., ``From disorder to order in marching locusts,'' \emph{Science}, vol.~312, no.~5778, pp. 1402--1406, 2006.
-
-\bibitem{toner2005}
-J.~Toner, Y.~Tu, and S.~Ramaswamy, ``Hydrodynamics and phases of flocks,'' \emph{Ann. Phys.}, vol.~318, no.~1, pp. 170--244, 2005.
-
-\bibitem{reif1999}
-J.~Reif and H.~Wang, ``Social potential fields: A distributed behavioral control for autonomous robots,'' \emph{Robotics and Autonomous Systems}, vol.~27, no.~3, pp. 171--194, 1999.
-
-\bibitem{lones2014}
-M.~A.~Lones, ``Metaheuristics in nature-inspired algorithms,'' in \emph{Proc. GECCO}, 2014, pp. 1419--1422.
-
-\bibitem{sorensen2015}
-K.~Sörensen, ``Metaheuristics—the metaphor exposed,'' \emph{Int. Trans. Oper. Res.}, vol.~22, no.~1, pp. 3--18, 2015.
-
-\bibitem{glover2015}
-F.~Glover and K.~Sörensen, ``Metaheuristics,'' \emph{Scholarpedia}, vol.~10, no.~4, p. 6532, 2015.
-
-\bibitem{swan2015}
-J.~Swan et al., ``A research agenda for metaheuristic standardization,'' \emph{Semantic Scholar}, 2015.
-
-\bibitem{silberholz2019}
-J.~Silberholz, B.~Golden, S.~Gupta, and X.~Wang, ``Computational comparison of metaheuristics,'' in \emph{Handbook of Metaheuristics}, Springer, 2019, pp. 581--604.
-
-\bibitem{dorigo2006ant}
-M.~Dorigo, M.~Birattari, and T.~Stutzle, ``Ant colony optimization,'' \emph{IEEE Comput. Intell. Mag.}, vol.~1, no.~4, pp. 28--39, 2006.
-
-\bibitem{holland1975}
-J.~H.~Holland, \emph{Adaptation in Natural and Artificial Systems}, Univ. Michigan Press, 1975.
-
-\bibitem{resende2010}
-M.~G.~C.~Resende and C.~C.~Ribeiro, ``Greedy randomized adaptive search procedures,'' in \emph{Handbook of Metaheuristics}, Springer, 2010, pp. 283--319.
-
-\bibitem{kudelic2019}
-R.~Kudelić and N.~Ivković, ``Ant inspired Monte Carlo algorithm for minimum feedback arc set,'' \emph{Expert Syst. Appl.}, vol.~122, pp. 108--117, 2019.
-
-\bibitem{dorigo2004book}
-M.~Dorigo and T.~Stützle, \emph{Ant Colony Optimization}, MIT Press, 2004.
-
-\bibitem{parsopoulos2002}
-K.~E.~Parsopoulos and M.~N.~Vrahatis, ``Recent approaches to global optimization problems through particle swarm optimization,'' \emph{Nat. Comput.}, vol.~1, pp. 235--306, 2002.
-
-\bibitem{clerc2006}
-M.~Clerc, \emph{Particle Swarm Optimization}, ISTE, 2006.
-
-\bibitem{rosenberg2015human}
-L.~Rosenberg, ``Human swarms, a real-time method for collective intelligence,'' in \emph{Proc. European Conf. Artificial Life}, 2015, pp. 658--659.
-
-\bibitem{metcalf2019}
-L.~Metcalf, D.~A.~Askay, and L.~B.~Rosenberg, ``Keeping humans in the loop: Pooling knowledge through artificial swarm intelligence to improve business decision making,'' \emph{Calif. Manage. Rev.}, vol.~61, no.~4, pp. 84--109, 2019.
-
-\bibitem{rosenberg2018diagnostic}
-L.~Rosenberg et al., ``Artificial swarm intelligence employed to amplify diagnostic accuracy in radiology,'' in \emph{Proc. IEEE IEMCON}, 2018, pp. 1186--1191.
-
-\bibitem{alrifaie2012SDS}
-M.~M.~al-Rifaie and A.~Aber, ``Identifying metastasis in bone scans with stochastic diffusion search,'' in \emph{Proc. IEEE ITME}, 2012, pp. 519--523.
-
-\bibitem{sun2020}
-W.~Sun et al., ``A survey of using swarm intelligence algorithms in {IoT},'' \emph{Sensors}, vol.~20, no.~5, p. 1420, 2020.
-
-\bibitem{abualigah2023}
-L.~Abualigah, D.~Falcone, and A.~Forestiero, ``Swarm intelligence to face {IoT} challenges,'' \emph{Comput. Intell. Neurosci.}, 2023.
-
-\bibitem{martens2011}
-D.~Martens, B.~Baesens, and T.~Fawcett, ``Editorial survey: Swarm intelligence for data mining,'' \emph{Mach. Learn.}, vol.~82, no.~1, pp. 1--42, 2011.
-
-\bibitem{thrun2021}
-M.~Thrun and A.~Ultsch, ``Swarm intelligence for self-organized clustering,'' \emph{Artificial Intelligence}, vol.~290, p. 103237, 2021.
-
-\bibitem{miller2010}
-P.~Miller, \emph{The Smart Swarm}, New York: Avery, 2010.
-
-\bibitem{shah2023}
-R.~Shah et al., ``Utilizing a digital swarm intelligence platform to improve consensus among radiologists and exploring its applications,'' \emph{J. Digit. Imaging}, vol.~36, no.~2, pp. 401--413, 2023.
-
-\bibitem{mammen2009}
-S.~von Mammen and C.~Jacob, ``The evolution of swarm grammars -- growing trees, crafting art and bottom-up design,'' \emph{IEEE Comput. Intell. Mag.}, vol.~4, no.~3, pp. 10--19, 2009.
-
-\bibitem{rifaie2012creative}
-M.~M.~al-Rifaie, J.~M.~Bishop, and S.~Caines, ``Creativity and autonomy in swarm intelligence systems,'' \emph{Cogn. Comput.}, vol.~4, no.~3, pp. 320--331, 2012.
-
-\bibitem{deleuze2004}
-G.~Deleuze, F.~Guattari, and B.~Massumi, \emph{A Thousand Plateaus}, Univ. Minnesota Press, 2004.
-
-\bibitem{rifaie2013sketches}
-M.~M.~Al-Rifaie and J.~M.~Bishop, ``Swarmic sketches and attention mechanism,'' in \emph{Evolutionary and Biologically Inspired Music, Sound, Art and Design}, Springer, 2013, pp. 85--96.
+\bibitem{kirkpatrick1983}
+S.~Kirkpatrick, C.~D.~Gelatt, and M.~P.~Vecchi, ``Optimization by simulated annealing,'' \emph{Science}, vol.~220, no.~4598, pp. 671--680, 1983.
 
 \end{thebibliography}
 
-% --- Author Biography Section ---
-\section*{Author Biography}
-% The [-2ex] reduces the gap between the last section and the biography
-\vspace{-7ex} 
-
 \begin{IEEEbiographynophoto}{Dakshith Rajkumar}
-is an independent researcher specializing in decentralized swarm intelligence and autonomous robotic navigation. His work focuses on the development of the Vel protocol series, specifically exploring Map-Aware Gradient Repulsion (MAGR) and spatio-temporal efficiency in multi-agent systems. A member of the National Junior Honor Society (NJHS) at Fowler Middle School, part of the Frisco Independent School District, he maintains a rigorous commitment to academic excellence and emergent engineering logic.
+is an independent researcher specializing in decentralized swarm
+intelligence and autonomous robotic navigation. His work focuses on the
+Vel protocol series, specifically Map-Aware Gradient Repulsion (MAGR) and
+spatio-temporal efficiency in multi-agent systems.
 \end{IEEEbiographynophoto}
-
-\vfill % Pushes the bio to the bottom or keeps spacing consistent with IEEE style
 
 \end{document}
