@@ -1,156 +1,121 @@
 """
-Vel-v5.0 MAGR Simulation
-========================
-A simple, single-file Python reimplementation of the Vel-v5.0 swarm protocol
-described in Sections III and IV of the paper.
+Vel-v5.0 Simulation -- v4.3-Faithful 3D Extension
+===================================================
+Vel-v5.0 is the 3D extension of Vel-v4.3's actual MAGR algorithm (Section
+3.3.2 / Algorithm 1 of the v4.3 paper): each agent scans a local Moore
+neighborhood of the shared occupancy grid, steers directly toward the
+NEAREST unexplored cell it can find, with steering magnitude proportional
+to the tuned Repulsion Factor G. This is different from -- and simpler than
+-- the three-separate-continuous-potential-field formulation written in
+Section III of the v5.0 draft (agent repulsion + boundary gradient +
+exploration attraction). This script implements the v4.3 algorithm,
+extended to 3D, which is the design actually validated by v4.3's 105,000
+trials and the design this simulation is meant to match.
 
-IMPORTANT NOTE ON FIDELITY TO THE PAPER:
------------------------------------------
-Algorithm 1 in the paper's Section V, as literally written, updates velocity
-using ONLY momentum decay + wind gust + gravity drift:
+What's new here on top of v4.3 (the genuinely "v5.0" additions):
+  - 3D voxel grid instead of a 2D cell grid
+  - stochastic wind gust perturbation (v5.0 Eq. 6-7)
+  - constant gravitational drift (v5.0 Eq. 5)
+  - elastic boundary reflection physics (v5.0 Eq. 17) instead of a flat clip
 
-    v_i <- mu*v_i + w_gust - g_drift
+Tuned constants carried over from the v4.3 paper's own empirical findings:
+  - mu = 0.99            (Study IV: dominates efficiency + stability frontier)
+  - G tuned per population density (Study III's N x G interaction finding).
+    v4.3 found G*_{N=300} = 1.5 and G*_{N=150} = 2.75 on a 50x50 2D grid.
+    NOTE: voxel density is different in 3D (32^3 = 32,768 voxels vs.
+    2,500 cells), so these exact G values are not guaranteed to transfer --
+    this script uses them as the starting point, not as an assumed-correct
+    3D optimum. Re-sweeping G in 3D is recommended before trusting a specific
+    numeric optimum for the paper.
 
-It never actually applies a_steering (the MAGR force derived in Section III-D:
-agent repulsion + boundary distance gradient + exploration attraction). That
-means the pseudocode shown in the paper does not test the MAGR protocol the
-theorems are about -- it tests unsteered particles bouncing around in a wind.
-
-This script fixes that gap: it implements the FULL MAGR steering force
-(Eqs. 10-16) and adds it to the velocity update, so the simulation actually
-matches what Theorem 1 and Theorem 2 are proving things about. If you want a
-literal, line-for-line reproduction of Algorithm 1 as written (i.e. without
-MAGR steering), set MAGR_ENABLED = False below to reproduce that behavior for
-comparison.
-
-ANOTHER NOTE: the paper uses the symbol G for two different things -- the
-wind Gust intensity (Eq. 6-7, swept in Section VI) AND the agent-repulsion
-charge coefficient (Eq. 10). This script keeps them as two separate named
-constants (GUST_INTENSITY and REPEL_COEFF) to avoid quietly coupling wind
-strength to repulsion strength, which is not what the empirical sweep in the
-paper describes.
-
-The exploration-attraction term (Eq. 15-16) is a continuous integral over a
-local ball of unexplored space. This script approximates it with a discrete
-sum over unexplored voxels within scan radius r, which is the natural
-discretization for a voxel grid and is documented here rather than silently
-assumed.
-
-Output: one row per trial, all raw trial-level data, written to CSV.
+Output: one row per trial, written to CSV.
 """
 
 import csv
+import multiprocessing as mp
 import numpy as np
 
 # ----------------------------------------------------------------------
-# Configuration -- edit these to match whatever parameter sweep you want.
+# Configuration
 # ----------------------------------------------------------------------
-GRID_SIZE = 32          # voxel grid is GRID_SIZE^3 (paper: 32x32x32 = 32,768 voxels)
-N_AGENTS = 150          # paper: N = 150
-MU = 0.98               # paper: momentum coefficient, mu = 0.98
-SCAN_RADIUS = 8         # paper: r = 8 (Local Moore Scan Range, MVR-4)
-GAERO = 0.082           # paper: gravitational drift magnitude, g_aero = 0.082
-EPSILON = -0.45         # paper: elastic boundary restitution coefficient
-STEPS_PER_TRIAL = 150   # paper: Algorithm 1, Steps < 150
+GRID_SIZE = 32              # 32x32x32 voxel grid (paper: 32,768 voxels)
+N_AGENTS = 150               # try both 150 and 300, per v4.3's population sweep
+MU = 0.99                    # v4.3 Study IV optimum
+SCAN_RADIUS = 5              # Moore neighborhood radius, r (v4.3 default r=5)
+STEERING_SCALE = 0.12        # the fixed scale factor from v4.3 Eq. 3-4 (R_G = G * dir * 0.12)
+G_REPULSION = 1.5            # v4.3 Study III optimum at N=300 (use 2.75 if N=150)
+GAERO = 0.082                # v5.0: gravitational drift magnitude
+EPSILON = -0.45              # v5.0: elastic boundary restitution coefficient
+STEPS_PER_TRIAL = 150        # v5.0 Algorithm 1: fixed 150-step trials
 START_POS = np.array([16.0, 28.0, 16.0])
 
-# MAGR force coefficients (not given numeric values in the paper -- tune these)
-REPEL_COEFF = 1.0       # G in Eq. 10 (agent-to-agent repulsion charge)
-BOUNDARY_GAMMA = 1.0    # gamma in Eq. 12 (boundary distance field strength)
-EXPL_ALPHA = 1.0        # alpha in Eq. 15 (exploration attraction strength)
+GUST_LEVELS = [0, 2, 4, 6, 8]     # include a G-analog gust control, mirroring v4.3's G=0 control idea
+TRIALS_PER_GUST_LEVEL = 500
+OUTPUT_CSV = "vel_v5_trials_v43_faithful.csv"
+RANDOM_SEED = None
 
-MAGR_ENABLED = True     # False = literal Algorithm 1 (no steering force at all)
-
-GUST_LEVELS = [2, 3, 4, 5, 6]   # paper: G in {2,3,4,5,6}, Section VI
-TRIALS_PER_GUST_LEVEL = 50      # <-- adjust this to run more/fewer trials.
-                                #     NOTE: the paper claims 10,000,000 trials
-                                #     total. This script defaults to a much
-                                #     smaller, fast, honest number you can
-                                #     actually verify ran correctly. Raise
-                                #     this if you want a bigger sample --
-                                #     runtime scales roughly linearly.
-
-OUTPUT_CSV = "vel_v5_trials.csv"
-RANDOM_SEED = None      # set an integer here for reproducible runs
-
-# ----------------------------------------------------------------------
+# At ~1.9s/trial, 500 trials x 5 gust levels = 2500 trials ~= 80 minutes on
+# one core. Trials are fully independent, so this uses multiple CPU cores in
+# parallel via multiprocessing. Set N_WORKERS = 1 to disable and run serially.
+N_WORKERS = mp.cpu_count()
 
 
-def agent_repulsion_force(positions):
-    """Eq. 10-11: repulsion from all neighbors within SCAN_RADIUS."""
-    n = positions.shape[0]
-    force = np.zeros_like(positions)
-    for i in range(n):
-        diff = positions[i] - positions            # (n, 3)
-        dist = np.linalg.norm(diff, axis=1)
-        dist[i] = np.inf                            # exclude self
-        neighbor_mask = dist <= SCAN_RADIUS
-        if not np.any(neighbor_mask):
-            continue
-        d = dist[neighbor_mask]
-        d = np.maximum(d, 1e-3)                     # avoid divide-by-zero
-        contrib = diff[neighbor_mask] / (d ** 4)[:, None]
-        force[i] = 2.0 * REPEL_COEFF * contrib.sum(axis=0)
-    return force
-
-
-def boundary_force(positions):
-    """Eq. 12-14: push inward, away from nearest of the 6 axis-aligned walls."""
-    n = positions.shape[0]
-    force = np.zeros_like(positions)
-    lo, hi = 0.0, float(GRID_SIZE - 1)
-    for i in range(n):
-        p = positions[i]
-        dists_to_walls = np.array([p[0] - lo, hi - p[0],
-                                    p[1] - lo, hi - p[1],
-                                    p[2] - lo, hi - p[2]])
-        dists_to_walls = np.maximum(dists_to_walls, 1e-3)
-        nearest_wall = np.argmin(dists_to_walls)
-        d = dists_to_walls[nearest_wall]
-        direction = np.zeros(3)
-        axis = nearest_wall // 2
-        sign = 1.0 if nearest_wall % 2 == 0 else -1.0  # push away from that wall
-        direction[axis] = sign
-        force[i] = (2.0 * BOUNDARY_GAMMA / (d ** 3)) * direction
-    return force
-
-
-def exploration_force(positions, occupancy):
+def find_nearest_unexplored_and_steer(positions, occupancy, swarm_center):
     """
-    Discretized version of Eq. 15-16: attraction toward nearby unexplored
-    voxels within SCAN_RADIUS, approximating the continuous integral with a
-    sum over the unexplored voxel centers in the local neighborhood.
+    Direct 3D extension of v4.3 Algorithm 1: for each agent, mark its current
+    voxel explored, then scan the Moore neighborhood of radius SCAN_RADIUS for
+    the nearest unexplored voxel and steer toward it. If none is found, fall
+    back to steering directly away from the swarm's geometric center
+    (v4.3's original center-bloom fallback, Eq. 4).
     """
     n = positions.shape[0]
-    force = np.zeros_like(positions)
+    steering = np.zeros_like(positions)
     r = SCAN_RADIUS
+
     for i in range(n):
         p = positions[i]
-        cx, cy, cz = int(p[0]), int(p[1]), int(p[2])
-        x_lo, x_hi = max(0, cx - r), min(GRID_SIZE, cx + r + 1)
-        y_lo, y_hi = max(0, cy - r), min(GRID_SIZE, cy + r + 1)
-        z_lo, z_hi = max(0, cz - r), min(GRID_SIZE, cz + r + 1)
+        gx, gy, gz = int(p[0]), int(p[1]), int(p[2])
+        gx = np.clip(gx, 0, GRID_SIZE - 1)
+        gy = np.clip(gy, 0, GRID_SIZE - 1)
+        gz = np.clip(gz, 0, GRID_SIZE - 1)
+
+        # mark current cell explored (v4.3 Algorithm 1, line 2)
+        occupancy[gx, gy, gz] = 1
+
+        x_lo, x_hi = max(0, gx - r), min(GRID_SIZE, gx + r + 1)
+        y_lo, y_hi = max(0, gy - r), min(GRID_SIZE, gy + r + 1)
+        z_lo, z_hi = max(0, gz - r), min(GRID_SIZE, gz + r + 1)
 
         sub = occupancy[x_lo:x_hi, y_lo:y_hi, z_lo:z_hi]
         unexplored_idx = np.argwhere(sub == 0)
-        if unexplored_idx.size == 0:
-            continue
 
-        voxel_centers = unexplored_idx + np.array([x_lo, y_lo, z_lo])
-        diff = voxel_centers - p
-        dist = np.linalg.norm(diff, axis=1)
-        within = dist <= r
-        if not np.any(within):
-            continue
-        diff = diff[within]
-        d = np.maximum(dist[within], 1e-3)
-        contrib = diff / (d ** 4)[:, None]
-        force[i] = 2.0 * EXPL_ALPHA * contrib.sum(axis=0)
-    return force
+        found = False
+        if unexplored_idx.size > 0:
+            voxel_centers = unexplored_idx + np.array([x_lo, y_lo, z_lo])
+            diff = voxel_centers - np.array([gx, gy, gz])
+            dist = np.linalg.norm(diff, axis=1)
+            within = dist <= r
+            if np.any(within):
+                d = dist[within]
+                best = np.argmin(d)
+                direction = diff[within][best] / max(d[best], 1e-6)
+                steering[i] = G_REPULSION * direction * STEERING_SCALE
+                found = True
+
+        if not found:
+            # fallback: steer directly away from swarm center (v4.3 Eq. 4 fallback)
+            out_dir = p - swarm_center
+            norm = np.linalg.norm(out_dir)
+            if norm > 1e-6:
+                out_dir = out_dir / norm
+            else:
+                out_dir = np.array([1.0, 0.0, 0.0])
+            steering[i] = G_REPULSION * out_dir * STEERING_SCALE
+
+    return steering
 
 
 def handle_elastic_collisions(positions, velocities):
-    """Cap position at grid walls and reflect velocity with restitution EPSILON."""
     lo, hi = 0.0, float(GRID_SIZE - 1)
     for axis in range(3):
         below = positions[:, axis] < lo
@@ -163,7 +128,6 @@ def handle_elastic_collisions(positions, velocities):
 
 
 def run_trial(gust_intensity, rng):
-    """Runs one full trial and returns a dict of trial-level results."""
     occupancy = np.zeros((GRID_SIZE, GRID_SIZE, GRID_SIZE), dtype=np.uint8)
     positions = np.tile(START_POS, (N_AGENTS, 1)) + rng.uniform(-0.5, 0.5, size=(N_AGENTS, 3))
     velocities = np.zeros((N_AGENTS, 3))
@@ -172,22 +136,17 @@ def run_trial(gust_intensity, rng):
     coverage_per_step = np.zeros(STEPS_PER_TRIAL)
 
     for step in range(STEPS_PER_TRIAL):
+        swarm_center = positions.mean(axis=0)
         wind_gust = rng.uniform(-0.5, 0.5, size=(N_AGENTS, 3)) * gust_intensity
-        g_drift = np.array([0.0, gaero_signed(), 0.0])
+        g_drift = np.array([0.0, GAERO, 0.0])
 
-        if MAGR_ENABLED:
-            a_steering = (agent_repulsion_force(positions)
-                          + boundary_force(positions)
-                          + exploration_force(positions, occupancy))
-        else:
-            a_steering = np.zeros_like(positions)
+        steering = find_nearest_unexplored_and_steer(positions, occupancy, swarm_center)
 
-        velocities = MU * velocities + a_steering - g_drift + wind_gust
+        velocities = MU * velocities + steering - g_drift + wind_gust
         positions = positions + velocities
         positions, velocities = handle_elastic_collisions(positions, velocities)
 
-        voxel_idx = np.floor(positions).astype(int)
-        voxel_idx = np.clip(voxel_idx, 0, GRID_SIZE - 1)
+        voxel_idx = np.clip(np.floor(positions).astype(int), 0, GRID_SIZE - 1)
         for vx, vy, vz in voxel_idx:
             if occupancy[vx, vy, vz] == 0:
                 occupancy[vx, vy, vz] = 1
@@ -206,27 +165,50 @@ def run_trial(gust_intensity, rng):
     }
 
 
-def gaero_signed():
-    # paper defines g_drift = [0, g_aero, 0]^T, a constant downward drift
-    return GAERO
+def _run_one(args):
+    """Worker function for multiprocessing -- each process needs its own
+    independently-seeded RNG (numpy RNGs are not safely shared across
+    processes)."""
+    g, trial_in_level, seed = args
+    rng = np.random.default_rng(seed)
+    result = run_trial(g, rng)
+    result["trial_index_within_gust_level"] = trial_in_level
+    return result
 
 
 def main():
-    rng = np.random.default_rng(RANDOM_SEED)
-    rows = []
-
     total_trials = len(GUST_LEVELS) * TRIALS_PER_GUST_LEVEL
-    trial_num = 0
 
+    # build the full job list up front: one independent seed per trial so
+    # results are reproducible and statistically independent across workers
+    ss = np.random.SeedSequence(RANDOM_SEED)
+    child_seeds = ss.spawn(total_trials)
+    jobs = []
+    seed_idx = 0
     for g in GUST_LEVELS:
         for trial_in_level in range(TRIALS_PER_GUST_LEVEL):
-            trial_num += 1
-            result = run_trial(g, rng)
-            result["trial_id"] = trial_num
-            result["trial_index_within_gust_level"] = trial_in_level
+            jobs.append((g, trial_in_level, child_seeds[seed_idx]))
+            seed_idx += 1
+
+    rows = []
+    print(f"Running {total_trials} trials across {N_WORKERS} worker process(es)...")
+
+    if N_WORKERS <= 1:
+        for i, job in enumerate(jobs, start=1):
+            result = _run_one(job)
+            result["trial_id"] = i
             rows.append(result)
-            print(f"[{trial_num}/{total_trials}] G={g} "
-                  f"efficiency={result['efficiency']:.4f}")
+            if i % 25 == 0 or i == total_trials:
+                print(f"[{i}/{total_trials}] gust={result['gust_intensity']} "
+                      f"efficiency={result['efficiency']:.4f}")
+    else:
+        with mp.Pool(processes=N_WORKERS) as pool:
+            for i, result in enumerate(pool.imap(_run_one, jobs), start=1):
+                result["trial_id"] = i
+                rows.append(result)
+                if i % 25 == 0 or i == total_trials:
+                    print(f"[{i}/{total_trials}] gust={result['gust_intensity']} "
+                          f"efficiency={result['efficiency']:.4f}")
 
     fieldnames = ["trial_id", "gust_intensity", "trial_index_within_gust_level",
                   "efficiency", "voxels_covered",
