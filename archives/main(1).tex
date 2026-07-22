@@ -18,7 +18,7 @@
 \usepackage{hyperref}
 \hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
   pdftitle={Vel-v5.5: A Decentralized 3D Volumetric Coverage Protocol under Aerodynamic Wind Perturbations},
-  pdfauthor={Dakshith Rajkumar}}
+  pdfauthor={}}
 
 \newcommand{\vecc}[1]{\vec{\mathbf{#1}}}
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
@@ -27,10 +27,9 @@
 
 \title{Vel-v5.5: A Decentralized 3D Volumetric Coverage Protocol\\ under Aerodynamic Wind Gust Perturbations}
 
-\author{Dakshith~Rajkumar,~\textit{Independent Researcher}
-\thanks{D. Rajkumar is an Independent Researcher. E-mail: daks2edu@gmail.com. ORCID: 0009-0006-2907-8815.}}
+\author{Manuscript submitted for double-anonymous review to IEEE T-ASE.}
 
-\markboth{Preprint, 2026}{Rajkumar: Vel-v5.5}
+\markboth{Manuscript submitted to IEEE T-ASE, 2026}{Anonymous et al.: Vel-v5.5}
 
 \maketitle
 
@@ -72,6 +71,28 @@ repulsion, spatio-temporal efficiency, aerodynamic disturbance rejection,
 coverage path planning, multi-rotor systems.
 \end{IEEEkeywords}
 
+\noindent\textit{Note to Practitioners---}This work addresses a practical
+problem in deploying groups of small flying robots (drones) to search or map
+a three-dimensional space, such as a warehouse interior, a collapsed
+building, or a stretch of airspace, without relying on GPS or a central
+controller telling each drone where to go. Each drone instead follows a
+simple local rule: check a shared digital map for the nearest not-yet-visited
+spot nearby, and fly toward it. We tested this rule in simulation under
+different levels of simulated wind, running 2,500 test flights. The result
+may be counterintuitive to practitioners used to treating wind as purely a
+problem to be corrected for: completely still air produced the worst
+coverage of any condition tested, while moderate wind produced the best
+coverage. This suggests that for this type of decentralized, locally-reactive
+drone behavior, some ambient disturbance is actually helpful, and that
+operators deploying this kind of system in unusually calm conditions (e.g.,
+indoors) may want to deliberately add a small amount of randomness to each
+drone's flight path rather than flying a perfectly steady, deterministic
+route. This paper reports simulation results only; the specific numeric
+recommendations have not yet been validated on physical hardware, nor
+compared side-by-side against other existing drone-swarm coordination
+methods, and practitioners should treat the findings as an initial
+characterization rather than a final, field-ready specification.
+
 \section{Introduction}
 \label{sec:intro}
 
@@ -88,7 +109,8 @@ The Vel protocol family addresses this problem through a two-layer
 decentralized architecture: a Shared Spatial Memory (SSM) layer, in which
 every agent reads and writes to a common binary occupancy grid, and a
 Kinetic Vector Logic (KVL) layer, in which each agent's velocity is updated
-by a local steering law computed from that shared map. Vel-v4.3 introduced
+by a local steering law computed from that shared map. Vel-v4.3
+\cite{velv43} introduced
 Map-Aware Gradient Repulsion (MAGR): rather than steering outward from the
 swarm's geometric center (a design that produces a documented
 \textit{boundary pile-up} failure mode as agent population scales), each
@@ -763,16 +785,16 @@ theoretical characterization of the discrete steering law as necessary next
 steps before broader claims of protocol superiority can be substantiated.
 
 \section*{Acknowledgements}
-The author acknowledges Gnaneswar Kumar Pullaganti and Dakshith Karthikeyan
-for their contributions during the early science fair phase of the Vel
-project. Their involvement was limited to that initial stage; they had no
-role in the development of Vel-v5.5 or any part of this work. The author
-used Claude (Anthropic) for simulation code implementation assistance,
-LaTeX formatting, and prose editing; all research concepts, experimental
-design, and scientific conclusions are the original work of the author.
-The author's ORCID is 0009-0006-2907-8815.
+Acknowledgements are omitted for double-anonymous review and will be
+included in the camera-ready version upon acceptance. Generative AI tools
+were used for simulation code implementation assistance, LaTeX formatting,
+and prose editing; all research concepts, experimental design, and
+scientific conclusions are the original work of the author(s).
 
 \begin{thebibliography}{9}
+
+\bibitem{velv43}
+Anonymous, ``Vel-v4.3: A Decentralized Swarm Protocol for Autonomous Volume Dominance,'' anonymized for double-blind review, 2026.
 
 \bibitem{latombe1991}
 J.-C.~Latombe, \emph{Robot Motion Planning}. Boston, MA: Kluwer Academic Publishers, 1991.
@@ -802,12 +824,5 @@ J.~Cortés, S.~Martínez, T.~Karatas, and F.~Bullo, ``Coverage control for mobil
 S.~Kirkpatrick, C.~D.~Gelatt, and M.~P.~Vecchi, ``Optimization by simulated annealing,'' \emph{Science}, vol.~220, no.~4598, pp. 671--680, 1983.
 
 \end{thebibliography}
-
-\begin{IEEEbiographynophoto}{Dakshith Rajkumar}
-is an independent researcher specializing in decentralized swarm
-intelligence and autonomous robotic navigation. His work focuses on the
-Vel protocol series, specifically Map-Aware Gradient Repulsion (MAGR) and
-spatio-temporal efficiency in multi-agent systems.
-\end{IEEEbiographynophoto}
 
 \end{document}
