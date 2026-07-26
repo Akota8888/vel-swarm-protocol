@@ -1,0 +1,828 @@
+\documentclass[10pt,journal]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{cite}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
+  pdftitle={Vel-v5.5: A Decentralized 3D Volumetric Coverage Protocol under Aerodynamic Wind Perturbations},
+  pdfauthor={}}
+
+\newcommand{\vecc}[1]{\vec{\mathbf{#1}}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+\begin{document}
+
+\title{Vel-v5.5: A Decentralized 3D Volumetric Coverage Protocol\\ under Aerodynamic Wind Gust Perturbations}
+
+\author{Manuscript submitted for double-anonymous review to IEEE T-ASE.}
+
+\markboth{Manuscript submitted to IEEE T-ASE, 2026}{Anonymous et al.: Vel-v5.5}
+
+\maketitle
+
+\begin{abstract}
+This paper presents Vel-v5.5, a three-dimensional extension of the Vel-v4.3
+decentralized swarm coverage protocol, and its empirical characterization
+under stochastic aerodynamic wind gust perturbations. Vel-v5.5 retains the
+core Map-Aware Gradient Repulsion (MAGR) steering law validated in Vel-v4.3
+-- each agent scans a local Moore neighborhood of a shared occupancy grid and
+steers directly toward the nearest unexplored cell -- and extends it from a
+two-dimensional cell grid to a three-dimensional voxel grid, adding
+gravitational drift, stochastic wind gust perturbation, and elastic boundary
+collision physics appropriate to aerial multi-rotor deployment. We report a
+full factorial sweep of wind gust intensity $G_{\text{wind}} \in \{0, 2, 4,
+6, 8\}$ at fixed population $N=150$, momentum $\mu=0.99$, MAGR steering
+factor $G=1.5$, and scan radius $r=5$, comprising 2{,}500 independent trials
+(500 per gust level) on a $32\times32\times32$ voxel grid. Results show that
+zero-gust operation collapses spatio-temporal efficiency to
+$\bar{\eta}=0.236$ ($\sigma=0.0059$), that efficiency rises sharply under
+mild-to-moderate gust and peaks at $G_{\text{wind}}=4$
+($\bar{\eta}=0.666$, $\sigma=0.0034$), and that efficiency declines modestly
+under high-intensity gust ($\bar{\eta}=0.637$ at $G_{\text{wind}}=8$). We
+interpret the zero-gust collapse as evidence that deterministic frontier
+steering alone is prone to trapping agents in locally stable, low-coverage
+configurations, and that stochastic wind perturbation functions as an
+exploration-enhancing noise source rather than purely as a disturbance to be
+rejected. We report this protocol and its empirical characterization as an
+engineering specification, and explicitly identify the limits of what is
+and is not established by the present study: no formal convergence
+guarantee is provided for the discrete steering law, no baseline comparison
+against classical potential-field or frontier-exploration methods has yet
+been run under identical conditions, and no physical hardware validation
+has been performed.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Swarm robotics, decentralized coordination, occupancy grid, map-aware
+repulsion, spatio-temporal efficiency, aerodynamic disturbance rejection,
+coverage path planning, multi-rotor systems.
+\end{IEEEkeywords}
+
+\noindent\textit{Note to Practitioners---}This work addresses a practical
+problem in deploying groups of small flying robots (drones) to search or map
+a three-dimensional space, such as a warehouse interior, a collapsed
+building, or a stretch of airspace, without relying on GPS or a central
+controller telling each drone where to go. Each drone instead follows a
+simple local rule: check a shared digital map for the nearest not-yet-visited
+spot nearby, and fly toward it. We tested this rule in simulation under
+different levels of simulated wind, running 2,500 test flights. The result
+may be counterintuitive to practitioners used to treating wind as purely a
+problem to be corrected for: completely still air produced the worst
+coverage of any condition tested, while moderate wind produced the best
+coverage. This suggests that for this type of decentralized, locally-reactive
+drone behavior, some ambient disturbance is actually helpful, and that
+operators deploying this kind of system in unusually calm conditions (e.g.,
+indoors) may want to deliberately add a small amount of randomness to each
+drone's flight path rather than flying a perfectly steady, deterministic
+route. This paper reports simulation results only; the specific numeric
+recommendations have not yet been validated on physical hardware, nor
+compared side-by-side against other existing drone-swarm coordination
+methods, and practitioners should treat the findings as an initial
+characterization rather than a final, field-ready specification.
+
+\section{Introduction}
+\label{sec:intro}
+
+Autonomous volumetric coverage using decentralized multi-agent robotic
+swarms is a capability of growing importance across planetary surface
+mapping, disaster search-and-rescue, atmospheric plume tracking, and
+industrial inspection \cite{latombe1991, brambilla2013review}. A recurring
+obstacle in decentralized coverage is the \textit{Redundant Search
+Problem}: absent shared spatial memory or a global coordinator, independent
+agents repeatedly re-traverse already-explored regions, degrading coverage
+efficiency as the mission progresses.
+
+The Vel protocol family addresses this problem through a two-layer
+decentralized architecture: a Shared Spatial Memory (SSM) layer, in which
+every agent reads and writes to a common binary occupancy grid, and a
+Kinetic Vector Logic (KVL) layer, in which each agent's velocity is updated
+by a local steering law computed from that shared map. Vel-v4.3
+\cite{velv43} introduced
+Map-Aware Gradient Repulsion (MAGR): rather than steering outward from the
+swarm's geometric center (a design that produces a documented
+\textit{boundary pile-up} failure mode as agent population scales), each
+agent scans a local neighborhood of the SSM and steers directly toward the
+nearest unexplored cell. Across 105{,}000 simulated trials, Vel-v4.3
+established $\mu=0.99$ and a population-dependent MAGR steering factor
+($G=1.5$ at $N=300$, $G=2.75$ at $N=150$) as empirical optima on a
+two-dimensional $50\times50$ grid.
+
+Vel-v5.5 extends this validated 2D algorithm into a three-dimensional voxel
+environment appropriate for aerial multi-rotor deployment, and asks a
+question Vel-v4.3 could not: how does the MAGR frontier-steering law behave
+under realistic aerodynamic disturbance? We add three physical elements
+absent from Vel-v4.3's abstract 2D grid: a constant gravitational drift
+term, a stochastic wind gust perturbation applied to agent velocity at each
+timestep, and elastic boundary collision physics in place of a simple
+positional clip. We then run a full factorial sweep of wind gust intensity
+and report the resulting efficiency characteristics.
+
+This paper supersedes an earlier draft of Vel-v5.0 that formulated MAGR as
+a continuous potential field (agent repulsion, boundary distance gradient,
+and exploration attraction terms summed as a single steering force) and
+paired this formulation with a Lyapunov-based asymptotic convergence proof.
+That earlier draft's reference simulation implementation did not, in fact,
+apply the derived steering force to agent velocity at all -- an
+implementation/theory mismatch discovered during manuscript review. Rather
+than retrofit a proof to an untested formulation, Vel-v5.5 instead extends
+the simpler, already-validated Vel-v4.3 steering law into 3D and reports
+its behavior purely empirically. We regard this as the more defensible
+path: an engineering protocol whose claims are limited to what has actually
+been simulated and measured.
+
+The remainder of this paper is organized as follows. Section~\ref{sec:related}
+reviews related work. Section~\ref{sec:architecture} describes the Vel-v5.5
+system architecture. Section~\ref{sec:metrics} defines the performance
+metrics used throughout. Section~\ref{sec:study} describes the wind gust
+sweep methodology. Section~\ref{sec:results} reports and analyzes the
+empirical results. Section~\ref{sec:mvr} provides a strategic
+implementation protocol for physical deployment. Section~\ref{sec:limits}
+states the explicit limitations of the present study, and
+Section~\ref{sec:conclusion} concludes.
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Coverage Path Planning}
+Coverage Path Planning (CPP) is the task of determining a path that passes
+over all points of an area or volume of interest while avoiding obstacles
+\cite{yamauchi1997}. A considerable body of research has addressed the CPP
+problem across domains including vacuum cleaning robots, autonomous
+underwater vehicles, demining robots, and aerial survey platforms. Classical
+CPP approaches such as boustrophedon decomposition partition the
+environment into cells and plan optimal traversal sequences for a single
+agent, but do not natively address the coordination challenges that arise
+when multiple agents must cover the same volume without collision or
+redundant re-traversal.
+
+\subsection{Ant Colony Optimization}
+Ant Colony Optimization (ACO) models the pheromone-trail communication of
+biological ants to solve combinatorial optimization problems, and has been
+extensively applied to multi-robot path planning, where pheromone
+concentration guides agents toward unexplored regions \cite{dorigo2006ant}.
+The key limitation of ACO for coverage tasks is stagnation: once pheromone
+trails converge on a particular traversal pattern, agents are difficult to
+redirect toward remaining unexplored regions, and the approach requires
+careful tuning of pheromone decay parameters to remain adaptive. Vel
+differs from ACO in a fundamental architectural choice: rather than a
+continuous pheromone concentration field, Vel's SSM layer uses a binary
+occupancy grid in which cells are either explored or unexplored with no
+intermediate state. This eliminates the stagnation problem by construction
+-- a voxel is explored or it is not -- and removes the need for pheromone
+decay tuning entirely.
+
+\subsection{Particle Swarm Optimization}
+Particle Swarm Optimization (PSO) models the collective motion of flocking
+agents to optimize continuous objective functions, and has been adapted for
+multi-robot coverage tasks in which agents are attracted toward unexplored
+regions by a shared global-best position \cite{banks2007}. PSO-based
+coverage systems are vulnerable to premature convergence: once the global
+best position is identified, all agents converge toward it rather than
+distributing across the remaining unexplored volume. Vel's KVL layer draws
+conceptual inspiration from PSO's velocity update rule -- specifically the
+momentum term $\mu$ that damps high-frequency direction changes -- but
+replaces PSO's global attractor with a map-aware local gradient, avoiding
+premature convergence by ensuring each agent steers toward the nearest
+locally unexplored voxel rather than a globally shared target.
+
+\subsection{Centroidal Voronoi Tessellation and Lloyd's Algorithm}
+Centroidal Voronoi Tessellations (CVT), computed via Lloyd's algorithm
+\cite{lloyd1982}, partition a coverage domain into cells such that each
+agent is responsible for the region closest to it, and have been formally
+extended to mobile sensing network coverage control \cite{cortes2004}.
+Extending CVT-based coverage from 2D to 3D volumes introduces substantial
+computational and geometric complexity: computing 3D Voronoi polyhedra in
+real time requires continuous, high-precision positioning data from every
+neighboring agent, demanding communication bandwidth and onboard processing
+power that are often unavailable on resource-constrained micro-aerial
+vehicle (MAV) platforms. Furthermore, classical CVT formulations are
+static and do not naturally adapt to an actively evolving spatial priority
+field as regions are progressively mapped. Vel-v5.5 achieves emergent
+volumetric coverage through localized, coordinate-blind gradient descent
+on a binary voxel grid, avoiding both the communication overhead and the
+static-partition limitation of CVT-based approaches.
+
+\subsection{Frontier-Based Exploration}
+Frontier-based exploration architectures identify the boundary between
+mapped free space and unmapped space, directing agents toward these
+``frontiers'' to expand the map \cite{yamauchi1997}. Classical frontier
+detection in 3D is typically a centralized process requiring global map
+synchronization and path-planning algorithms such as $A^*$ search or Fast
+Marching Methods to compute collision-free trajectories to identified
+frontiers -- a bottleneck that scales poorly with agent count and is
+vulnerable to single-point-of-failure network drops. Vel's MAGR steering
+law achieves the target-attraction behavior of frontier-based schemes
+through a purely localized, reactive scan-and-steer computation, avoiding
+the need for global trajectory planning or explicit frontier tracking.
+
+\subsection{Decentralized Multi-Robot Coverage}
+Decentralized multi-robot coverage architectures achieve competitive
+coverage efficiency while eliminating the single point of failure inherent
+to centralized command structures \cite{brambilla2013review}.
+Potential-field-based decentralized swarms, however, are documented to
+suffer severe spatial instabilities when navigating near physical
+boundaries or non-convex obstacles \cite{saska2014cooperative}. Vel-v4.3's
+introduction of MAGR directly addressed an analogous instability (boundary
+pile-up under center-outward repulsion) in a 2D setting by modeling the
+physical perimeter through local map awareness rather than global geometric
+bearing. The present study evaluates whether this same architectural
+solution remains effective when the steering law is extended into three
+dimensions and subjected to physical aerodynamic disturbance.
+
+\subsection{Occupancy Grid Representations}
+The occupancy grid representation underlying Vel's SSM layer originates in
+probabilistic mobile robot perception and mapping research, where
+individual cells encode the probability of physical occupancy under sensor
+uncertainty. Vel simplifies this representation to a deterministic binary
+state (explored/unexplored), appropriate for a coverage task in which the
+quantity of interest is certainty of prior visitation rather than
+probability of physical occupancy.
+
+\subsection{Positioning of Vel-v5.5}
+Vel-v5.5 occupies a distinct position in the swarm coverage landscape.
+Unlike ACO, it uses deterministic binary memory rather than probabilistic
+pheromone concentration. Unlike PSO, it uses local map-aware gradient
+descent rather than global positional attraction. Unlike CVT-based
+methods, it requires no continuous inter-agent positioning communication
+and adapts naturally as the occupancy field evolves. Unlike classical
+frontier-exploration CPP methods, it is fully decentralized with no
+pre-planned or centrally computed traversal sequence. The present
+contribution is the extension of this already-validated 2D steering law
+into a three-dimensional voxel environment and its systematic
+characterization under stochastic aerodynamic disturbance -- a condition
+not modeled in any of the coverage architectures reviewed above.
+
+\section{System Architecture}
+\label{sec:architecture}
+
+Vel-v5.5 retains Vel-v4.3's two-layer architecture.
+
+\begin{figure}[t]
+\centering
+\fbox{\parbox{0.92\columnwidth}{\centering
+\textbf{Vel-v5.5 Two-Layer Architecture} \\[0.3cm]
+\fbox{\parbox{0.85\columnwidth}{\centering \textbf{Shared Spatial Memory (SSM)} \\ $32\times32\times32$ binary voxel occupancy grid \\ read/write by all agents every timestep}} \\[0.2cm]
+$\updownarrow$ \\[0.2cm]
+\fbox{\parbox{0.85\columnwidth}{\centering \textbf{Kinetic Vector Logic (KVL)} \\ Moore-neighborhood scan $\rightarrow$ MAGR steering \\ $+$ momentum $+$ gravity drift $+$ wind gust \\ $+$ elastic boundary collision}} \\[0.2cm]
+$\downarrow$ \\[0.2cm]
+\fbox{\parbox{0.6\columnwidth}{\centering Agent position \& velocity update}}
+}}
+\caption{Two-layer Vel-v5.5 architecture. Every agent reads the shared SSM
+to locate its steering target, then updates its own velocity through the
+KVL layer independently -- no direct agent-to-agent communication channel
+is required.}
+\label{fig:architecture}
+\end{figure}
+
+Fig.~\ref{fig:architecture} summarizes the flow of information between the
+two layers, described in detail below.
+
+\subsection{Shared Spatial Memory (SSM)}
+The operational volume is discretized into a voxel grid $\mathcal{V}$ of
+dimensions $32\times32\times32$ (32{,}768 voxels). Each voxel
+$c(x,y,z)\in\mathcal{V}$ is a binary state variable:
+\begin{equation}
+c(x,y,z) = \begin{cases} 0 & \text{Unexplored} \\ 1 & \text{Explored} \end{cases}
+\end{equation}
+Every agent reads and writes the same SSM, providing implicit coordination
+without direct agent-to-agent communication.
+
+\subsection{Kinetic Vector Logic (KVL) and MAGR Steering}
+At each timestep, agent $i$ at position $\mathbf{p}_i(t)\in\mathbb{R}^3$
+first marks its current voxel explored, then scans the Moore neighborhood
+of radius $r$ around that voxel for the nearest unexplored voxel. If one is
+found at relative offset $(dx^*,dy^*,dz^*)$, the agent's steering
+acceleration is:
+\begin{equation}
+\vec{R}_G = G \cdot \frac{(dx^*,dy^*,dz^*)}{\norm{(dx^*,dy^*,dz^*)}} \cdot k
+\label{eq:magr_found}
+\end{equation}
+where $G\in\mathbb{R}^+$ is the tunable steering factor and $k=0.12$ is the
+fixed scale constant carried over from Vel-v4.3. If no unexplored voxel is
+found within radius $r$, the agent falls back to steering directly away
+from the swarm's instantaneous geometric center $\bar{\mathbf{p}}(t)$:
+\begin{equation}
+\vec{R}_G = G \cdot \frac{\mathbf{p}_i(t) - \bar{\mathbf{p}}(t)}{\norm{\mathbf{p}_i(t) - \bar{\mathbf{p}}(t)}} \cdot k
+\label{eq:magr_fallback}
+\end{equation}
+
+The full velocity update integrates this steering term with momentum,
+gravitational drift, and stochastic wind gust perturbation:
+\begin{equation}
+\mathbf{v}_i(t+1) = \mu\,\mathbf{v}_i(t) + \vec{R}_G - \mathbf{g}_{\text{drift}} + \mathbf{w}_{\text{gust}}(t)
+\label{eq:vel_update}
+\end{equation}
+\begin{equation}
+\mathbf{p}_i(t+1) = \mathbf{p}_i(t) + \mathbf{v}_i(t+1)
+\end{equation}
+where $\mu\in[0,1)$ is the momentum coefficient, $\mathbf{g}_{\text{drift}} =
+[0, g_{\text{aero}}, 0]^\top$ is a constant downward gravitational drift
+($g_{\text{aero}}=0.082$), and $\mathbf{w}_{\text{gust}}(t)$ is a stochastic
+wind gust vector with independent components:
+\begin{equation}
+w_{j,i}(t) \sim \mathcal{U}(-0.5, 0.5) \cdot G_{\text{wind}}, \quad \forall j\in\{x,y,z\}
+\label{eq:gust}
+\end{equation}
+parameterized by gust intensity $G_{\text{wind}}$. Note that
+$G_{\text{wind}}$ (wind gust intensity) and $G$ (MAGR steering factor, Eq.
+\ref{eq:magr_found}) are distinct quantities and are varied independently
+in this study; $G$ is held fixed at the Vel-v4.3 empirical optimum
+throughout, while $G_{\text{wind}}$ is the swept experimental variable.
+
+\subsection{Computational Complexity of 3D Neighborhood Scanning}
+Extending MAGR's local neighborhood scan from a 2D Moore neighborhood to a
+3D Moore neighborhood changes its computational cost scaling. In Vel-v4.3's
+2D formulation, scanning a neighborhood of radius $r$ requires
+$(2r+1)^2$ SSM reads per agent per timestep. In the 3D voxel formulation
+used here, the equivalent scan requires $(2r+1)^3$ reads per agent per
+timestep -- a cubic rather than quadratic growth in $r$. At the scan
+radius used throughout this study ($r=5$), this corresponds to 121 reads
+per agent per step in 2D versus 1{,}331 reads per agent per step in 3D, an
+order-of-magnitude increase in onboard scan cost for the same radius. This
+has a direct engineering implication: Vel-v4.3's Study V finding that MAGR
+efficiency is radius-invariant in 2D (permitting a small, computationally
+cheap scan radius) cannot be assumed to transfer to 3D without
+re-verification, since the cubic cost scaling makes the choice of scan
+radius a substantially more consequential deployment decision in a voxel
+environment than in a 2D cell grid. Re-sweeping scan radius in 3D to locate
+the analogous radius-invariance threshold is identified as future work in
+Section~\ref{sec:limits}.
+
+\subsection{Elastic Boundary Collision}
+When an agent's predicted position exceeds the grid boundary $[0,31]^3$,
+its position is capped at the boundary and its velocity along the violated
+axis is reflected with restitution coefficient $\epsilon=-0.45$:
+\begin{equation}
+v_{j,i}(t+1) \leftarrow \epsilon \cdot v_{j,i}(t+1)
+\end{equation}
+
+\begin{algorithm}[t]
+\caption{Vel-v5.5 Per-Agent Update}
+\label{alg:vel55}
+\begin{algorithmic}[1]
+\Procedure{UpdateAgent}{$i$}
+    \State $(gx,gy,gz) \gets \lfloor \mathbf{p}_i \rfloor$
+    \State $c(gx,gy,gz) \gets 1$
+    \State Scan Moore neighborhood of radius $r$ for nearest unexplored voxel
+    \If{found at $(dx^*,dy^*,dz^*)$}
+        \State $\vec{R}_G \gets$ Eq.~\ref{eq:magr_found}
+    \Else
+        \State $\vec{R}_G \gets$ Eq.~\ref{eq:magr_fallback}
+    \EndIf
+    \State $\mathbf{w}_{\text{gust}} \gets$ sample per Eq.~\ref{eq:gust}
+    \State $\mathbf{v}_i \gets \mu\mathbf{v}_i + \vec{R}_G - \mathbf{g}_{\text{drift}} + \mathbf{w}_{\text{gust}}$
+    \State $\mathbf{p}_i \gets \mathbf{p}_i + \mathbf{v}_i$
+    \State Apply elastic boundary collision if $\mathbf{p}_i$ exceeds $[0,31]^3$
+    \State Mark voxel at $\lfloor \mathbf{p}_i \rfloor$ explored if unexplored
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\section{Performance Metrics}
+\label{sec:metrics}
+
+\subsection{Spatio-Temporal Efficiency}
+Consistent with Vel-v4.3, the primary metric is:
+\begin{equation}
+\eta = \frac{\Delta C}{\Delta T \cdot N}
+\end{equation}
+where $\Delta C$ is the number of newly explored voxels over the trial,
+$\Delta T$ is the number of elapsed timesteps, and $N$ is agent count. This
+is equivalently computed here as $\text{Covered}/(\text{Steps}\cdot N)$ over
+a fixed 150-step trial.
+
+\subsection{Stability}
+Trial-to-trial standard deviation of $\eta$ within a configuration:
+\begin{equation}
+\sigma = \sqrt{\frac{1}{K}\sum_{k=1}^{K}(\eta_k - \bar{\eta})^2}
+\end{equation}
+
+\section{Wind Gust Sweep: Methodology}
+\label{sec:study}
+
+We fix population $N=150$, momentum $\mu=0.99$ (the Vel-v4.3 Study IV
+optimum), MAGR steering factor $G=1.5$ (the Vel-v4.3 Study III optimum at
+$N=300$; re-validating this choice at $N=150$ in 3D is identified as future
+work in Section~\ref{sec:limits}), and scan radius $r=5$. We sweep wind
+gust intensity $G_{\text{wind}} \in \{0,2,4,6,8\}$, running 500 independent
+trials per gust level (2{,}500 trials total) on the $32\times32\times32$
+voxel grid described in Section~\ref{sec:architecture}. Each trial runs for
+a fixed 150 timesteps. All trials use independent random seeds drawn from a
+single seed sequence for reproducibility.
+
+\section{Results}
+\label{sec:results}
+
+\begin{table}[t]
+\centering
+\caption{Wind Gust Sweep Results ($N=150$, $\mu=0.99$, $G=1.5$, $r=5$, 500 trials per level)}
+\label{tab:gust_sweep}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$G_{\text{wind}}$ & $\bar{\eta}$ & $\sigma_\eta$ & min & max \\
+\midrule
+0 & 0.2361 & 0.0059 & 0.2197 & 0.2523 \\
+2 & 0.6204 & 0.0053 & 0.6036 & 0.6347 \\
+4 & \textbf{0.6664} & 0.0034 & 0.6566 & 0.6763 \\
+6 & 0.6565 & 0.0029 & 0.6478 & 0.6658 \\
+8 & 0.6373 & 0.0028 & 0.6291 & 0.6454 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/fig1_efficiency_vs_gust.png}
+\caption{Mean spatio-temporal efficiency vs. wind gust intensity, with
+$\pm 1\sigma$ error bars ($n=500$ per level). Efficiency peaks at
+$G_{\text{wind}}=4$.}
+\label{fig:eff_vs_gust}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/fig2_efficiency_boxplot.png}
+\caption{Full efficiency distribution by gust level ($n=500$ per level).
+Distributions are tight and non-overlapping between the zero-gust and
+all wind-perturbed conditions.}
+\label{fig:eff_boxplot}
+\end{figure}
+
+\subsection{Zero-Gust Collapse}
+The zero-gust condition ($G_{\text{wind}}=0$) produces the lowest observed
+efficiency, $\bar{\eta}=0.236$, less than half the efficiency of every
+wind-perturbed condition tested. Given the tight standard deviation at this
+level ($\sigma=0.0059$) and the complete non-overlap of its distribution
+with any other tested gust level (Fig.~\ref{fig:eff_boxplot}), this is not
+a marginal effect. We attribute this to the deterministic nature of the
+nearest-cell steering law under zero disturbance: absent any stochastic
+perturbation, agents following identical local scan-and-steer logic from
+similar starting conditions can settle into mutually reinforcing,
+locally-stable trajectory patterns that repeatedly re-scan the same
+already-explored local neighborhoods rather than escaping toward more
+distant unexplored volume. This is consistent with known local-minima
+trapping behavior in deterministic potential-field and frontier-following
+navigation methods generally.
+
+\subsection{Non-Monotonic Response to Gust Intensity}
+Efficiency rises sharply from $G_{\text{wind}}=0$ to $G_{\text{wind}}=2$,
+continues to a peak at $G_{\text{wind}}=4$ ($\bar{\eta}=0.6664$), then
+declines modestly through $G_{\text{wind}}=6$ and $G_{\text{wind}}=8$
+(Fig.~\ref{fig:eff_vs_gust}). This shape is consistent with wind gust
+functioning as an exploration-enhancing stochastic perturbation at moderate
+intensity -- breaking agents out of the local trapping behavior identified
+above -- while at higher intensity the perturbation increasingly dominates
+and degrades the steering signal itself, consistent with the elastic
+boundary collision mechanism dissipating a larger share of trajectory
+energy as gust-driven boundary impacts become more frequent.
+
+\subsection{Stability Decreases with Distance from Zero-Gust}
+Standard deviation is highest at $G_{\text{wind}}=0$ ($\sigma=0.0059$) and
+generally decreases as gust intensity rises to $G_{\text{wind}}=6$
+($\sigma=0.0029$) and $G_{\text{wind}}=8$ ($\sigma=0.0028$), with
+$G_{\text{wind}}=2$ as a mild exception ($\sigma=0.0053$). This suggests
+that moderate-to-high wind gust, in addition to raising mean efficiency
+relative to the zero-gust case, also produces more trial-to-trial
+consistent behavior -- a potentially useful property for deployment
+scenarios requiring predictable coverage completion times.
+
+\subsection{Statistical Significance}
+\label{sec:stats}
+To confirm that the differences reported above reflect a genuine effect
+rather than sampling noise, we conducted pairwise Welch's $t$-tests between
+each adjacent gust level in Table~\ref{tab:gust_sweep}, with Cohen's $d$
+computed as the standardized effect size. Results are summarized in
+Table~\ref{tab:ttests}.
+
+\begin{table}[t]
+\centering
+\caption{Pairwise Welch's $t$-tests Between Adjacent Gust Levels ($N=150$ dataset)}
+\label{tab:ttests}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Comparison & $t$ & $p$ & Cohen's $d$ \\
+\midrule
+$G_{\text{wind}}{=}0$ vs.\ $2$ & $-1080.5$ & $<10^{-300}$ & $68.4$ \\
+$G_{\text{wind}}{=}2$ vs.\ $4$ & $-163.4$ & $<10^{-300}$ & $10.3$ \\
+$G_{\text{wind}}{=}4$ vs.\ $6$ & $49.6$ & $\approx10^{-268}$ & $-3.1$ \\
+$G_{\text{wind}}{=}6$ vs.\ $8$ & $107.4$ & $<10^{-300}$ & $-6.8$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every adjacent-level comparison is statistically significant at an
+extreme margin, and every effect size exceeds conventional thresholds for
+a ``large'' effect ($|d|>0.8$) by more than an order of magnitude. The
+zero-gust-to-moderate-gust transition in particular ($d=68.4$) is among
+the largest effect sizes we are aware of being reported in a swarm
+coverage parameter study, reflecting the near-total non-overlap of the
+zero-gust distribution with every wind-perturbed condition visible in
+Fig.~\ref{fig:eff_boxplot}. We conclude that the non-monotonic response to
+gust intensity reported in this paper is a robust feature of the tested
+configuration and not an artifact of sampling variation.
+
+\subsection{Population Density Effect: Preliminary N=300 Comparison}
+Vel-v4.3's own Study I identified a genuine diminishing-returns effect in
+Coordination Quality ($\eta/N$) as population scales, driven by
+scan-overlap congestion. To check whether an analogous effect appears in
+the 3D setting, we ran a preliminary comparison at $N=300$ (double the
+main study's population) at three representative gust levels
+($G_{\text{wind}} \in \{0,4,8\}$), with 20 trials per level -- a smaller
+sample than the main study's 500 trials per level, run as a pilot check
+rather than a full characterization. Results are shown in
+Table~\ref{tab:n300} and Fig.~\ref{fig:n150_vs_n300}.
+
+\begin{table}[t]
+\centering
+\caption{N=300 Preliminary Comparison (20 trials per gust level)}
+\label{tab:n300}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$G_{\text{wind}}$ & $\bar{\eta}$ ($N=300$) & $\bar{\eta}$ ($N=150$) & Ratio \\
+\midrule
+0 & 0.1804 & 0.2361 & 0.76 \\
+4 & 0.5014 & 0.6664 & 0.75 \\
+8 & 0.4776 & 0.6373 & 0.75 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/fig3_n150_vs_n300.png}
+\caption{Efficiency vs. gust intensity at $N=150$ (full study, $n=500$ per
+level) and $N=300$ (preliminary comparison, $n=20$ per level). The
+qualitative pattern -- zero-gust collapse, peak at moderate gust -- holds
+at both population sizes, though absolute efficiency is systematically
+lower at $N=300$.}
+\label{fig:n150_vs_n300}
+\end{figure}
+
+At all three tested gust levels, doubling population from 150 to 300
+reduces mean efficiency by a remarkably consistent ratio of approximately
+0.75--0.76, while the qualitative shape of the gust-response curve --
+zero-gust collapse, peak at moderate gust, mild decline at high gust --
+is preserved at both population sizes. This is consistent with the same
+scan-overlap congestion mechanism Vel-v4.3 documented in 2D: because
+efficiency $\eta$ is normalized by $N$, a larger swarm operating in the
+same volume must achieve proportionally more coverage to maintain
+constant $\eta$, and increased agent density raises the likelihood that
+multiple agents simultaneously target the same nearby unexplored voxel.
+We emphasize that this comparison uses a substantially smaller sample
+than the main $N=150$ study and should be treated as a preliminary
+finding pending a full $N=300$ sweep at 500 trials per level, consistent
+with Vel-v4.3's own systematic population-sweep methodology.
+
+\section{Strategic Implementation Protocol (MVR)}
+\label{sec:mvr}
+
+Based on the results in Section~\ref{sec:results} and the Vel-v4.3
+findings this protocol extends, we identify the following Minimum Viable
+Requirements for physical multi-rotor deployment:
+
+\begin{enumerate}
+\item \textbf{MVR-1: Controller Update Frequency $\geq 50$ Hz.} Consistent
+with Vel-v4.3's KVL update rate requirement.
+\item \textbf{MVR-2: Mesh Synchronization Latency $< 15$ ms.} To limit
+Ghost Redundancy (multiple agents targeting the same unexplored voxel
+before SSM writes propagate).
+\item \textbf{MVR-3: Momentum Coefficient $\mu \geq 0.95$.} Carried over
+from Vel-v4.3 Study IV; not independently re-swept in the present 3D study
+(see Section~\ref{sec:limits}).
+\item \textbf{MVR-4: Do not operate in still-air conditions.} Section
+\ref{sec:results} shows zero-gust operation produces the lowest observed
+efficiency of any tested condition. Where natural wind is unavailable or
+insufficient, an artificial stochastic perturbation to agent velocity is
+recommended to replicate the exploration-enhancing effect observed here.
+\item \textbf{MVR-5: Target Operating Gust Range $G_{\text{wind}} \in
+[3,5]$.} Bracketing the empirical peak at $G_{\text{wind}}=4$.
+\end{enumerate}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Noise-Assisted Exploration: A Broader Context}
+The finding that stochastic perturbation improves a deterministic search
+process is not unique to swarm coverage. In combinatorial optimization,
+simulated annealing deliberately introduces a temperature-controlled
+stochastic perturbation to escape local minima that a purely greedy search
+would remain trapped in \cite{kirkpatrick1983}. In nonlinear dynamical
+systems, stochastic resonance describes conditions under which added noise
+improves detection or response of an otherwise sub-threshold signal. The
+zero-gust collapse and subsequent moderate-gust peak reported in
+Section~\ref{sec:results} are broadly consistent with this class of
+phenomena: the MAGR steering law, as a purely deterministic
+nearest-cell-seeking rule, appears to define a search landscape containing
+locally stable configurations from which a swarm of identically-programmed
+agents cannot escape without external perturbation. Wind gust, in this
+framing, is not merely an environmental disturbance to be rejected by
+robust control, but is itself doing useful computational work: it is the
+source of the randomness the steering law itself does not provide. This
+reframing has a direct engineering implication distinct from the MVR
+recommendations in Section~\ref{sec:mvr}: if a deployment environment is
+unusually still, deliberately injecting a small stochastic perturbation
+into the KVL velocity update (rather than merely tolerating ambient wind)
+may be preferable to relying on incidental turbulence.
+
+\subsection{Why Efficiency Declines at High Gust Intensity}
+The decline in mean efficiency beyond $G_{\text{wind}}=4$ (Section
+\ref{sec:results}) is consistent with two compounding mechanisms. First, as
+gust magnitude grows relative to the fixed MAGR steering magnitude ($G
+\cdot k$ in Eq.~\ref{eq:magr_found}), the wind term increasingly dominates
+the velocity update in Eq.~\ref{eq:vel_update}, degrading the directional
+signal that carries an agent toward its identified target voxel. Second,
+higher gust intensity increases the frequency with which agents' predicted
+positions exceed the grid boundary, triggering the elastic collision
+mechanism (Eq.~\ref{eq:vel_update}) more often; because the restitution
+coefficient $\epsilon=-0.45$ dissipates a substantial fraction of kinetic
+energy on each boundary impact, more frequent boundary collisions convert
+a larger share of the agent's total trajectory energy into dissipated
+energy rather than productive exploration motion. Distinguishing the
+relative contribution of these two mechanisms would require an ablation
+in which boundary collision frequency is logged directly -- a
+straightforward instrumentation addition identified as future work.
+
+\subsection{Relationship to the Superseded Vel-v5.0 Formulation}
+It is worth stating plainly why this paper does not attempt to reconcile
+its findings with the continuous potential-field formulation and Lyapunov
+convergence proof of the superseded Vel-v5.0 draft (Section
+\ref{sec:intro}). The two formulations are different control laws: the
+potential-field formulation computes steering as the negative gradient of
+a smooth composite potential summing agent-repulsion, boundary-distance,
+and exploration-attraction terms, while the discrete formulation studied
+here computes steering as a unit vector toward the single nearest
+unexplored voxel located by discrete neighborhood search. A convergence
+proof derived for the former does not apply to the latter, and we regard
+an unsupported claim of formal convergence as a more serious defect in an
+engineering protocol paper than the simple absence of one. The empirical
+characterization in this paper is offered as a substitute standard of
+evidence appropriate to the discrete steering law actually implemented and
+tested.
+
+\section{Threats to Validity}
+\label{sec:limits}
+
+We organize the limitations of this study using the standard internal,
+external, and construct validity framing common to empirical robotics and
+software engineering research.
+
+\subsection{Internal Validity}
+\textit{Does the reported effect actually stem from gust intensity, rather
+than a confound?} All configuration parameters other than
+$G_{\text{wind}}$ (population, momentum, MAGR steering factor, scan radius,
+grid size, trial length, and random seed sequence) were held fixed across
+the sweep, and every trial's random seed is drawn independently from a
+common seed sequence (Section~\ref{sec:repro}), so no shared randomness
+could produce a spurious cross-condition correlation. The statistical
+tests in Section~\ref{sec:stats} confirm the observed differences are
+far larger than sampling variation could plausibly produce. We consider
+internal validity for the specific claim ``efficiency varies
+non-monotonically with $G_{\text{wind}}$ under this configuration'' to be
+well supported.
+
+\subsection{External Validity}
+\textit{Do these findings generalize beyond the tested configuration?}
+This is the weakest aspect of the present study. All results use a single
+population size for the main study ($N=150$), a single MAGR steering
+factor and momentum coefficient (both carried over from Vel-v4.3's 2D
+optimum rather than independently re-derived in 3D), a single scan radius,
+and a single grid size and trial length. The preliminary $N=300$ comparison
+(Section~\ref{sec:results}) suggests the qualitative gust-response pattern
+is not an artifact of the specific $N=150$ configuration, but this was
+tested at reduced sample size and only three gust levels. We explicitly do
+not claim that the reported optimum ($G_{\text{wind}}=4$) generalizes to
+other population sizes, steering factors, momentum coefficients, scan
+radii, or grid dimensions without further testing.
+
+\subsection{Construct Validity}
+\textit{Does spatio-temporal efficiency $\eta$ actually measure what a
+deployment engineer cares about?} $\eta$ is normalized by both elapsed time
+and agent count, and is therefore a reasonable proxy for the economic cost
+of a coverage mission (fewer agent-timesteps per unit coverage is cheaper
+to operate), but it does not directly capture other properties a physical
+deployment may require, such as worst-case time-to-completion, energy
+consumption per agent, or resilience to individual agent failure. No claim
+in this paper should be read as a claim about those other properties.
+
+\subsection{Summary of Untested Claims}
+Consolidating the above, we state explicitly what remains untested:
+
+\begin{itemize}
+\item \textbf{No formal convergence guarantee.} Unlike a continuous
+potential-field formulation, no Lyapunov-style or other formal proof of
+asymptotic coverage is provided for the discrete nearest-cell steering law
+studied here. The empirical results in Section~\ref{sec:results} should be
+read as evidence of practical behavior under the tested conditions, not as
+a proven guarantee.
+\item \textbf{No baseline comparison.} This study characterizes Vel-v5.5's
+own response to wind gust intensity; it does not compare Vel-v5.5 against
+classical artificial potential field or frontier-exploration methods run
+under identical 3D, wind-perturbed conditions. Such a baseline comparison
+is necessary to substantiate any claim of relative advantage over existing
+methods and is identified as the immediate next step for this line of work.
+\item \textbf{Population size only preliminarily explored.} The main study
+uses $N=150$. Section~\ref{sec:results} reports a preliminary $N=300$
+comparison (20 trials per level, versus 500 for the main study) that finds
+a consistent efficiency reduction ratio and a preserved qualitative
+gust-response shape, suggestive of the same scan-overlap congestion
+Vel-v4.3 documented in 2D. This finding should be treated as preliminary;
+a full $N=300$ sweep at matching sample size (500 trials per level), and
+ideally additional population points as in Vel-v4.3's own three-point
+sweep, is needed before a population-dependent claim can be made with the
+same confidence as the gust-intensity findings.
+\item \textbf{MAGR steering factor, momentum, and scan radius not
+re-swept in 3D.} $G=1.5$, $\mu=0.99$, and $r=5$ are carried over from
+Vel-v4.3's 2D optimum rather than independently re-derived for the 3D
+voxel environment. Section~\ref{sec:architecture}'s complexity analysis
+indicates scan radius in particular may not transfer directly given the
+cubic rather than quadratic cost scaling in 3D.
+\item \textbf{Simulation only.} No physical hardware validation has been
+performed. The MVR specifications in Section~\ref{sec:mvr} are design
+targets, not validated hardware requirements.
+\end{itemize}
+
+\section{Reproducibility and Data Availability}
+\label{sec:repro}
+
+All 2{,}500 trial records underlying Table~\ref{tab:gust_sweep} and the
+20-trial-per-level $N=300$ comparison underlying Table~\ref{tab:n300} were
+generated by a single-file Python simulation implementing
+Algorithm~\ref{alg:vel55} exactly as specified. Each trial uses an
+independently-drawn random seed from a common seed sequence, and raw
+per-trial efficiency values (not only summary statistics) are retained in
+the accompanying dataset, permitting independent recomputation of every
+statistic and figure reported in this paper, including the pairwise
+significance tests in Section~\ref{sec:stats}.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+Vel-v5.5 extends the empirically-validated Vel-v4.3 MAGR frontier-steering
+protocol from a 2D cell grid into a 3D voxel environment subject to
+aerodynamic disturbance. Across 2{,}500 trials sweeping wind gust
+intensity, we find that stochastic wind perturbation is not merely a
+disturbance to be rejected but functions as an exploration-enhancing
+mechanism: zero-gust operation collapses efficiency to less than half of
+any wind-perturbed condition tested, efficiency peaks at moderate gust
+intensity ($G_{\text{wind}}=4$), and efficiency declines modestly under
+higher-intensity gust. These findings are reported strictly as empirical
+observations under the tested conditions; Section~\ref{sec:limits}
+identifies baseline comparison, population re-sweeping, and formal
+theoretical characterization of the discrete steering law as necessary next
+steps before broader claims of protocol superiority can be substantiated.
+
+\section*{Acknowledgements}
+Acknowledgements are omitted for double-anonymous review and will be
+included in the camera-ready version upon acceptance. Generative AI tools
+were used for simulation code implementation assistance, LaTeX formatting,
+and prose editing; all research concepts, experimental design, and
+scientific conclusions are the original work of the author(s).
+
+\begin{thebibliography}{9}
+
+\bibitem{velv43}
+Anonymous, ``Vel-v4.3: A Decentralized Swarm Protocol for Autonomous Volume Dominance,'' anonymized for double-blind review, 2026.
+
+\bibitem{latombe1991}
+J.-C.~Latombe, \emph{Robot Motion Planning}. Boston, MA: Kluwer Academic Publishers, 1991.
+
+\bibitem{brambilla2013review}
+M.~Brambilla, E.~Ferrante, M.~Birattari, and M.~Dorigo, ``Swarm robotics: a review from the swarm engineering perspective,'' \emph{Swarm Intelligence}, vol.~7, no.~1, pp. 1--41, 2013.
+
+\bibitem{yamauchi1997}
+B.~Yamauchi, ``A frontier-based approach for autonomous exploration,'' in \emph{Proc. IEEE Int. Symp. Comput. Intell. Robot. Autom. (CIRA)}, 1997, pp. 146--151.
+
+\bibitem{saska2014cooperative}
+M.~Saska et al., ``Autonomous deployment of swarms of micro-aerial vehicles in cooperative surveillance,'' in \emph{Proc. ICUAS}, 2014.
+
+\bibitem{dorigo2006ant}
+M.~Dorigo, M.~Birattari, and T.~Stutzle, ``Ant colony optimization,'' \emph{IEEE Comput. Intell. Mag.}, vol.~1, no.~4, pp. 28--39, 2006.
+
+\bibitem{banks2007}
+A.~Banks, J.~Vincent, and C.~Anyakoha, ``A review of particle swarm optimization. Part I: background and development,'' \emph{Nat. Comput.}, vol.~6, no.~4, pp. 467--484, 2007.
+
+\bibitem{lloyd1982}
+S.~Lloyd, ``Least squares quantization in {PCM},'' \emph{IEEE Trans. Inf. Theory}, vol.~28, no.~2, pp. 129--137, 1982.
+
+\bibitem{cortes2004}
+J.~Cortés, S.~Martínez, T.~Karatas, and F.~Bullo, ``Coverage control for mobile sensing networks,'' \emph{IEEE Trans. Robot. Autom.}, vol.~20, no.~2, pp. 243--255, 2004.
+
+\bibitem{kirkpatrick1983}
+S.~Kirkpatrick, C.~D.~Gelatt, and M.~P.~Vecchi, ``Optimization by simulated annealing,'' \emph{Science}, vol.~220, no.~4598, pp. 671--680, 1983.
+
+\end{thebibliography}
+
+\end{document}
