@@ -1,0 +1,16 @@
+Scenario,Protocol,Coverage,Collisions,Hazard_Penalties,Victims_Found,Total_Victims,Victim_Success_Pct,Latency_ms,Energy_Efficiency,Fault_Tolerance
+Day 1 Baseline,Vel,2.48,0,6,0,4,0.0,8.26,99.9,98.5
+Day 1 Baseline,CPP,1.88,0,0,0,4,0.0,3.12,100.0,35.0
+Day 1 Baseline,Levy,46.16,0,111,4,4,100.0,4.41,97.8,80.0
+Day 1 Baseline,PSO_ACO,2.2,0,29,1,4,25.0,4.16,99.4,80.0
+Day 1 Baseline,ABC,13.44,0,34,1,4,25.0,3.78,99.3,80.0
+Collapsed Grid,Vel,2.89,2,4,1,4,25.0,7.68,99.9,98.5
+Collapsed Grid,CPP,0.04,2990,0,0,4,0.0,3.31,85.0,35.0
+Collapsed Grid,Levy,47.3,29,131,4,4,100.0,3.49,97.2,80.0
+Collapsed Grid,PSO_ACO,1.73,2872,29,0,4,0.0,3.62,85.1,80.0
+Collapsed Grid,ABC,10.19,20,736,0,4,0.0,3.38,85.2,80.0
+Signal Blindspots,Vel,2.91,3,3,1,4,25.0,7.47,99.9,98.5
+Signal Blindspots,CPP,2.04,0,0,0,4,0.0,3.24,100.0,35.0
+Signal Blindspots,Levy,44.83,23,60,2,4,50.0,3.34,98.7,80.0
+Signal Blindspots,PSO_ACO,1.83,2868,26,0,4,0.0,3.68,85.1,80.0
+Signal Blindspots,ABC,10.87,5,396,1,4,25.0,3.34,92.1,80.0
